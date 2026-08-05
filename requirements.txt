@@ -1,0 +1,6 @@
+streamlit>=1.38
+gspread>=6.1
+google-auth>=2.33
+pandas>=2.2
+openpyxl>=3.1
+bcrypt>=4.2
