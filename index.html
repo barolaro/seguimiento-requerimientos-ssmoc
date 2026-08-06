@@ -5,101 +5,103 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Seguimiento de Requerimientos - Abastecimiento SSMOC</title>
 <style>
-body{margin:0;font-family:Arial,sans-serif;background:#f4f6f8;color:#25364a}
-header{background:#164e73;color:#fff;padding:22px 32px}
-header h1{margin:0;font-size:26px}
-header p{margin:6px 0 0;opacity:.85}
-.container{padding:24px 32px}
-.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:22px}
-.card{background:#fff;border-radius:12px;padding:18px;box-shadow:0 4px 14px rgba(0,0,0,.07)}
-.card span{color:#6f7d8d;font-size:13px}
-.card strong{display:block;font-size:30px;margin-top:8px}
-.actions{display:flex;gap:12px;justify-content:space-between;align-items:center;margin-bottom:18px}
-button{border:0;border-radius:8px;padding:10px 14px;cursor:pointer;font-weight:bold}
-.primary{background:#1f6fa5;color:#fff}
-.secondary{background:#e8eef4;color:#164e73}
-.filters{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:12px;margin-bottom:18px}
-input,select,textarea{width:100%;padding:10px;border:1px solid #d7dee6;border-radius:8px;box-sizing:border-box}
-table{width:100%;border-collapse:collapse;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 14px rgba(0,0,0,.07)}
-th{background:#edf2f6;text-align:left;padding:12px;font-size:13px}
-td{padding:12px;border-top:1px solid #e3e8ed;font-size:13px}
-.badge{display:inline-block;padding:5px 9px;border-radius:20px;font-size:11px;font-weight:bold}
-.pendiente{background:#fff1c9;color:#8b6900}
-.ejecucion{background:#dbeafe;color:#1f4d8f}
-.espera{background:#efe0ff;color:#67229b}
-.terminado{background:#d9f8df;color:#1c6a2d}
-.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);align-items:center;justify-content:center;padding:20px}
-.modal-box{background:#fff;border-radius:14px;padding:22px;width:min(620px,100%)}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.full{grid-column:1/-1}
-.modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:14px}
-@media(max-width:900px){.cards{grid-template-columns:1fr 1fr}.filters{grid-template-columns:1fr 1fr}}
-@media(max-width:600px){.cards,.filters,.grid{grid-template-columns:1fr}.container{padding:18px}.full{grid-column:auto}}
+:root{--azul:#164e73;--azul2:#1f6fa5;--fondo:#f4f6f8;--texto:#25364a;--muted:#6f7d8d;--borde:#d7dee6;--rojo:#d92d20}
+*{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:var(--fondo);color:var(--texto)}button,input,select,textarea{font:inherit}.hidden{display:none!important}
+.login{min-height:100vh;display:grid;place-items:center;background:linear-gradient(135deg,#164e73,#1f6fa5);padding:24px}.login-card{width:min(440px,100%);background:white;border-radius:22px;padding:32px;box-shadow:0 26px 70px rgba(0,0,0,.28)}.login-card h1{margin:0;text-align:center;color:var(--azul);font-size:28px}.login-card p{text-align:center;color:var(--muted);margin:8px 0 24px}.field{margin-bottom:14px}label{display:block;font-size:12px;font-weight:bold;color:#5b6878;margin-bottom:6px}input,select,textarea{width:100%;padding:11px 12px;border:1px solid var(--borde);border-radius:9px;background:white}.btn{border:0;border-radius:9px;padding:11px 14px;font-weight:bold;cursor:pointer}.primary{background:var(--azul2);color:white}.secondary{background:#e8eef4;color:var(--azul)}.danger{background:#fde9e7;color:var(--rojo)}.block{width:100%}.demo{margin-top:18px;padding:14px;border:1px dashed var(--borde);border-radius:12px;background:#f8fafc}.demo-row{display:flex;gap:8px;margin-top:10px}.error{margin-top:12px;color:#b42318;font-size:13px;text-align:center}
+.app{display:grid;grid-template-columns:260px 1fr;min-height:100vh}.sidebar{background:linear-gradient(180deg,#164e73,#0b3049);color:white;padding:20px 18px;position:sticky;top:0;height:100vh}.brand{font-size:19px;font-weight:800;margin-bottom:20px}.profile{background:rgba(255,255,255,.11);padding:14px;border-radius:12px;margin-bottom:18px}.avatar{width:44px;height:44px;border-radius:50%;background:white;color:var(--azul);display:grid;place-items:center;font-weight:800;margin-bottom:8px}.profile span{display:block;font-size:12px;opacity:.8}.nav button{width:100%;text-align:left;background:transparent;color:white;border:0;padding:12px;border-radius:9px;margin-bottom:6px;cursor:pointer}.nav button:hover,.nav button.active{background:rgba(255,255,255,.14)}.logout{position:absolute;left:18px;right:18px;bottom:20px}.main{padding:26px 30px 44px}.hero{background:var(--azul);color:white;padding:22px 26px;border-radius:15px;margin-bottom:18px}.hero h1{margin:0;font-size:28px}.hero p{margin:6px 0 0;opacity:.86}.cards{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:20px}.card{background:white;border-radius:13px;padding:18px;box-shadow:0 4px 14px rgba(0,0,0,.07)}.card span{color:var(--muted);font-size:13px}.card strong{display:block;font-size:30px;margin-top:8px}.actions{display:flex;justify-content:space-between;align-items:center;gap:14px;margin-bottom:16px}.filters{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:12px;margin-bottom:16px}.table-wrap{overflow:auto;background:white;border-radius:13px;box-shadow:0 4px 14px rgba(0,0,0,.07)}table{width:100%;border-collapse:collapse;min-width:980px}th{background:#edf2f6;text-align:left;padding:12px;font-size:13px}td{padding:12px;border-top:1px solid #e3e8ed;font-size:13px;vertical-align:top}.badge{display:inline-block;padding:5px 9px;border-radius:20px;font-size:11px;font-weight:bold}.pendiente{background:#fff1c9;color:#8b6900}.ejecucion{background:#dbeafe;color:#1f4d8f}.espera{background:#efe0ff;color:#67229b}.terminado{background:#d9f8df;color:#1c6a2d}.admin-panel,.profile-panel{background:white;border-radius:13px;padding:18px;box-shadow:0 4px 14px rgba(0,0,0,.07);margin-bottom:16px}.user-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}.user-card{border:1px solid var(--borde);border-radius:12px;padding:15px}.user-card strong{display:block}.user-card small{color:var(--muted)}.user-actions{display:flex;gap:8px;margin-top:12px}.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.48);align-items:center;justify-content:center;padding:20px;z-index:20}.modal-box{background:white;border-radius:14px;padding:22px;width:min(700px,100%);max-height:90vh;overflow:auto}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.full{grid-column:1/-1}.modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:14px}.notice{background:#eaf4ff;border-left:4px solid var(--azul2);padding:12px;border-radius:0 10px 10px 0;margin-bottom:16px}
+@media(max-width:1000px){.cards{grid-template-columns:repeat(2,1fr)}.user-grid{grid-template-columns:1fr 1fr}}@media(max-width:760px){.app{grid-template-columns:1fr}.sidebar{height:auto;position:relative}.logout{position:static;margin-top:18px}.cards,.filters,.grid,.user-grid{grid-template-columns:1fr}.main{padding:18px}.full{grid-column:auto}}
 </style>
 </head>
 <body>
-<header>
-<h1>Seguimiento de Requerimientos</h1>
-<p>Departamento de Abastecimiento · SSMOC</p>
-</header>
+<section id="login" class="login">
+  <div class="login-card">
+    <h1>Abastecimiento SSMOC</h1>
+    <p>Seguimiento de requerimientos</p>
+    <div class="field"><label>Usuario</label><input id="usuario" placeholder="Ingrese usuario"></div>
+    <div class="field"><label>Contraseña</label><input id="clave" type="password" placeholder="Ingrese contraseña"></div>
+    <button class="btn primary block" onclick="iniciarSesion()">Ingresar</button>
+    <div id="loginError" class="error"></div>
+    <div class="demo"><strong>Accesos de demostración</strong><div class="demo-row"><button class="btn secondary" onclick="accesoDemo('admin')">Administrador</button><button class="btn secondary" onclick="accesoDemo('bayron')">Ejecutivo</button></div><small>admin / Admin123 · bayron / 1234</small></div>
+  </div>
+</section>
 
-<div class="container">
-<div class="cards">
-<div class="card"><span>Total de requerimientos</span><strong>12</strong></div>
-<div class="card"><span>En ejecución</span><strong>5</strong></div>
-<div class="card"><span>Terminados</span><strong>4</strong></div>
-<div class="card"><span>Sin actualizar</span><strong>3</strong></div>
-</div>
+<section id="app" class="app hidden">
+  <aside class="sidebar">
+    <div class="brand">📦 Abastecimiento SSMOC</div>
+    <div class="profile"><div id="avatar" class="avatar">AR</div><strong id="nombrePerfil">Administrador</strong><span id="rolPerfil">Administrador</span></div>
+    <div class="nav">
+      <button class="active" onclick="mostrar('resumen',this)">🏠 Resumen</button>
+      <button onclick="mostrar('requerimientos',this)">📋 Requerimientos</button>
+      <button class="solo-admin" onclick="mostrar('usuarios',this)">👥 Administrar usuarios</button>
+      <button onclick="mostrar('miPerfil',this)">👤 Mi perfil</button>
+    </div>
+    <button class="btn secondary logout" onclick="cerrarSesion()">Cerrar sesión</button>
+  </aside>
 
-<div class="actions">
-<div>
-<h2 style="margin:0">Requerimientos</h2>
-<p style="margin:5px 0;color:#6f7d8d">Vista de jefatura para revisar el estado de cada ejecutivo.</p>
-</div>
-<button class="primary" onclick="abrirModal()">+ Nuevo requerimiento</button>
-</div>
+  <main class="main">
+    <section id="resumen">
+      <div class="hero"><h1 id="tituloResumen">Resumen ejecutivo</h1><p id="subtituloResumen">Estado general de los requerimientos.</p></div>
+      <div id="avisoRol" class="notice"></div>
+      <div class="cards"><div class="card"><span>Total</span><strong id="kpiTotal">0</strong></div><div class="card"><span>Pendientes</span><strong id="kpiPendientes">0</strong></div><div class="card"><span>En ejecución</span><strong id="kpiEjecucion">0</strong></div><div class="card"><span>Terminados</span><strong id="kpiTerminados">0</strong></div><div class="card"><span>Sin actualizar</span><strong id="kpiSinActualizar">0</strong></div></div>
+      <div class="admin-panel"><h2>Requerimientos prioritarios</h2><div id="prioritarios"></div></div>
+    </section>
 
-<div class="filters">
-<input placeholder="Buscar por palabra o requerimiento">
-<select><option>Todos los ejecutivos</option><option>Bayron Retamal</option><option>Andrea Muñoz</option><option>Carlos Soto</option></select>
-<select><option>Todos los estados</option><option>Pendiente</option><option>En ejecución</option><option>En espera</option><option>Terminado</option></select>
-<select><option>Todas las prioridades</option><option>Alta</option><option>Media</option><option>Baja</option></select>
-</div>
+    <section id="requerimientos" class="hidden">
+      <div class="actions"><div><h1 style="margin:0">Requerimientos</h1><p style="color:var(--muted)">Seguimiento y trazabilidad de gestiones.</p></div><button class="btn primary solo-admin" onclick="abrirNuevo()">+ Nuevo requerimiento</button></div>
+      <div class="filters"><input id="buscar" placeholder="Buscar por palabra" oninput="renderTabla()"><select id="filtroEjecutivo" class="solo-admin" onchange="renderTabla()"><option value="">Todos los ejecutivos</option></select><select id="filtroEstado" onchange="renderTabla()"><option value="">Todos los estados</option><option>Pendiente</option><option>En ejecución</option><option>En espera</option><option>Terminado</option></select><select id="filtroPrioridad" onchange="renderTabla()"><option value="">Todas las prioridades</option><option>Alta</option><option>Media</option><option>Baja</option></select></div>
+      <div class="table-wrap"><table><thead><tr><th>ID</th><th>Requerimiento</th><th>Ejecutivo</th><th>Estado</th><th>Prioridad</th><th>Última actualización</th><th>Acción</th></tr></thead><tbody id="tablaRequerimientos"></tbody></table></div>
+    </section>
 
-<table>
-<thead>
-<tr><th>ID</th><th>Requerimiento</th><th>Ejecutivo</th><th>Estado</th><th>Prioridad</th><th>Última actualización</th><th>Acción</th></tr>
-</thead>
-<tbody>
-<tr><td>#001</td><td><b>Revisión de antecedentes de compra</b><br>Se solicitaron correcciones a la unidad requirente.</td><td>Bayron Retamal</td><td><span class="badge ejecucion">En ejecución</span></td><td>Alta</td><td>Hoy</td><td><button class="secondary" onclick="abrirModal()">Editar</button></td></tr>
-<tr><td>#002</td><td><b>Preparación de bases administrativas</b><br>Pendiente recepción de especificaciones técnicas.</td><td>Andrea Muñoz</td><td><span class="badge pendiente">Pendiente</span></td><td>Media</td><td>Hace 3 días</td><td><button class="secondary" onclick="abrirModal()">Editar</button></td></tr>
-<tr><td>#003</td><td><b>Seguimiento de orden de compra</b><br>Proveedor informa despacho durante la semana.</td><td>Carlos Soto</td><td><span class="badge espera">En espera</span></td><td>Alta</td><td>Hace 8 días</td><td><button class="secondary" onclick="abrirModal()">Editar</button></td></tr>
-<tr><td>#004</td><td><b>Carga de antecedentes en Mercado Público</b><br>Proceso validado correctamente.</td><td>Andrea Muñoz</td><td><span class="badge terminado">Terminado</span></td><td>Baja</td><td>Ayer</td><td><button class="secondary" onclick="abrirModal()">Ver</button></td></tr>
-</tbody>
-</table>
-</div>
+    <section id="usuarios" class="hidden solo-admin">
+      <div class="actions"><div><h1 style="margin:0">Administrar usuarios</h1><p style="color:var(--muted)">Crear, editar y desactivar perfiles.</p></div><button class="btn primary" onclick="abrirUsuario()">+ Crear usuario</button></div>
+      <div id="listaUsuarios" class="user-grid"></div>
+    </section>
 
-<div id="modal" class="modal">
-<div class="modal-box">
-<h2>Actualizar requerimiento</h2>
-<div class="grid">
-<div class="full"><label>Requerimiento</label><input value="Revisión de antecedentes de compra"></div>
-<div><label>Ejecutivo</label><select><option>Bayron Retamal</option><option>Andrea Muñoz</option><option>Carlos Soto</option></select></div>
-<div><label>Estado</label><select><option>En ejecución</option><option>Pendiente</option><option>En espera</option><option>Terminado</option></select></div>
-<div><label>Prioridad</label><select><option>Alta</option><option>Media</option><option>Baja</option></select></div>
-<div><label>Fecha compromiso</label><input type="date" value="2026-08-10"></div>
-<div class="full"><label>Última gestión</label><textarea rows="4">Se solicitaron correcciones a la unidad requirente.</textarea></div>
-</div>
-<div class="modal-actions">
-<button class="secondary" onclick="cerrarModal()">Cancelar</button>
-<button class="primary" onclick="cerrarModal()">Guardar</button>
-</div>
-</div>
-</div>
+    <section id="miPerfil" class="hidden">
+      <div class="hero"><h1>Mi perfil</h1><p>Información de acceso y rol asignado.</p></div>
+      <div class="profile-panel"><p><strong>Nombre:</strong> <span id="perfilNombreDetalle"></span></p><p><strong>Usuario:</strong> <span id="perfilUsuarioDetalle"></span></p><p><strong>Rol:</strong> <span id="perfilRolDetalle"></span></p><p><strong>Permisos:</strong> <span id="perfilPermisos"></span></p></div>
+    </section>
+  </main>
+</section>
+
+<div id="modalReq" class="modal"><div class="modal-box"><h2 id="modalReqTitulo">Actualizar requerimiento</h2><div class="grid"><div class="full"><label>Título</label><input id="reqTitulo"></div><div><label>Ejecutivo</label><select id="reqEjecutivo"></select></div><div><label>Estado</label><select id="reqEstado"><option>Pendiente</option><option>En ejecución</option><option>En espera</option><option>Terminado</option></select></div><div><label>Prioridad</label><select id="reqPrioridad"><option>Alta</option><option>Media</option><option>Baja</option></select></div><div><label>Última actualización</label><input id="reqFecha"></div><div class="full"><label>Última gestión</label><textarea id="reqGestion"></textarea></div></div><div class="modal-actions"><button class="btn secondary" onclick="cerrarModalReq()">Cancelar</button><button class="btn primary" onclick="guardarRequerimiento()">Guardar</button></div></div></div>
+
+<div id="modalUsuario" class="modal"><div class="modal-box"><h2>Crear usuario</h2><div class="grid"><div><label>Usuario</label><input id="nuevoUsuario"></div><div><label>Nombre completo</label><input id="nuevoNombre"></div><div><label>Contraseña</label><input id="nuevaClave" type="password"></div><div><label>Rol</label><select id="nuevoRol"><option value="ejecutivo">Ejecutivo</option><option value="administrador">Administrador</option></select></div></div><div class="modal-actions"><button class="btn secondary" onclick="cerrarUsuario()">Cancelar</button><button class="btn primary" onclick="guardarUsuario()">Crear usuario</button></div></div></div>
 
 <script>
-function abrirModal(){document.getElementById('modal').style.display='flex'}
-function cerrarModal(){document.getElementById('modal').style.display='none'}
+const usuarios=[
+ {usuario:'admin',clave:'Admin123',nombre:'Administrador Abastecimiento',rol:'administrador',activo:true},
+ {usuario:'bayron',clave:'1234',nombre:'Bayron Retamal',rol:'ejecutivo',activo:true},
+ {usuario:'andrea',clave:'1234',nombre:'Andrea Muñoz',rol:'ejecutivo',activo:true},
+ {usuario:'carlos',clave:'1234',nombre:'Carlos Soto',rol:'ejecutivo',activo:true}
+];
+let requerimientos=[
+ {id:'#001',titulo:'Revisión de antecedentes de compra',gestion:'Se solicitaron correcciones a la unidad requirente.',ejecutivo:'bayron',estado:'En ejecución',prioridad:'Alta',fecha:'Hoy'},
+ {id:'#002',titulo:'Preparación de bases administrativas',gestion:'Pendiente recepción de especificaciones técnicas.',ejecutivo:'andrea',estado:'Pendiente',prioridad:'Media',fecha:'Hace 3 días'},
+ {id:'#003',titulo:'Seguimiento de orden de compra',gestion:'Proveedor informa despacho durante la semana.',ejecutivo:'carlos',estado:'En espera',prioridad:'Alta',fecha:'Hace 8 días'},
+ {id:'#004',titulo:'Carga de antecedentes en Mercado Público',gestion:'Proceso validado correctamente.',ejecutivo:'andrea',estado:'Terminado',prioridad:'Baja',fecha:'Ayer'}
+];
+let sesion=null, editando=null;
+function accesoDemo(u){document.getElementById('usuario').value=u;document.getElementById('clave').value=u==='admin'?'Admin123':'1234';iniciarSesion()}
+function iniciarSesion(){const u=document.getElementById('usuario').value.trim().toLowerCase();const c=document.getElementById('clave').value;const encontrado=usuarios.find(x=>x.usuario===u&&x.clave===c&&x.activo);if(!encontrado){document.getElementById('loginError').textContent='Usuario o contraseña incorrectos.';return}sesion=encontrado;document.getElementById('login').classList.add('hidden');document.getElementById('app').classList.remove('hidden');configurarPerfil();renderTodo()}
+function cerrarSesion(){location.reload()}
+function configurarPerfil(){const admin=sesion.rol==='administrador';document.getElementById('nombrePerfil').textContent=sesion.nombre;document.getElementById('rolPerfil').textContent=admin?'Administrador':'Ejecutivo';document.getElementById('avatar').textContent=sesion.nombre.split(' ').map(x=>x[0]).slice(0,2).join('');document.querySelectorAll('.solo-admin').forEach(x=>x.classList.toggle('hidden',!admin));document.getElementById('tituloResumen').textContent=admin?'Resumen ejecutivo':'Mis requerimientos';document.getElementById('subtituloResumen').textContent=admin?'Estado general de todos los ejecutivos.':'Seguimiento de los requerimientos asignados.';document.getElementById('avisoRol').innerHTML=admin?'<strong>Perfil administrador:</strong> puede visualizar todos los requerimientos, asignar ejecutivos y administrar usuarios.':'<strong>Perfil ejecutivo:</strong> puede visualizar y actualizar solamente sus requerimientos.';document.getElementById('perfilNombreDetalle').textContent=sesion.nombre;document.getElementById('perfilUsuarioDetalle').textContent=sesion.usuario;document.getElementById('perfilRolDetalle').textContent=admin?'Administrador':'Ejecutivo';document.getElementById('perfilPermisos').textContent=admin?'Control total del sistema.':'Consulta y actualización de requerimientos propios.'}
+function mostrar(id,btn){['resumen','requerimientos','usuarios','miPerfil'].forEach(x=>document.getElementById(x).classList.add('hidden'));document.getElementById(id).classList.remove('hidden');document.querySelectorAll('.nav button').forEach(x=>x.classList.remove('active'));btn.classList.add('active')}
+function visibles(){return sesion.rol==='administrador'?requerimientos:requerimientos.filter(r=>r.ejecutivo===sesion.usuario)}
+function nombreUsuario(u){return usuarios.find(x=>x.usuario===u)?.nombre||u}
+function claseEstado(e){return e==='Pendiente'?'pendiente':e==='En ejecución'?'ejecucion':e==='En espera'?'espera':'terminado'}
+function renderTodo(){renderKpis();renderTabla();renderUsuarios();cargarSelects()}
+function renderKpis(){const v=visibles();document.getElementById('kpiTotal').textContent=v.length;document.getElementById('kpiPendientes').textContent=v.filter(x=>x.estado==='Pendiente').length;document.getElementById('kpiEjecucion').textContent=v.filter(x=>x.estado==='En ejecución').length;document.getElementById('kpiTerminados').textContent=v.filter(x=>x.estado==='Terminado').length;document.getElementById('kpiSinActualizar').textContent=v.filter(x=>x.fecha.includes('8')).length;document.getElementById('prioritarios').innerHTML=v.filter(x=>x.prioridad==='Alta'&&x.estado!=='Terminado').map(x=>`<div class="notice"><strong>${x.titulo}</strong><br><small>${nombreUsuario(x.ejecutivo)} · ${x.estado} · ${x.fecha}</small></div>`).join('')||'<p>No hay requerimientos prioritarios.</p>'}
+function renderTabla(){const q=(document.getElementById('buscar')?.value||'').toLowerCase();const fe=document.getElementById('filtroEjecutivo')?.value||'';const fs=document.getElementById('filtroEstado')?.value||'';const fp=document.getElementById('filtroPrioridad')?.value||'';const data=visibles().filter(r=>(!q||(r.titulo+' '+r.gestion).toLowerCase().includes(q))&&(!fe||r.ejecutivo===fe)&&(!fs||r.estado===fs)&&(!fp||r.prioridad===fp));document.getElementById('tablaRequerimientos').innerHTML=data.map(r=>`<tr><td>${r.id}</td><td><b>${r.titulo}</b><br>${r.gestion}</td><td>${nombreUsuario(r.ejecutivo)}</td><td><span class="badge ${claseEstado(r.estado)}">${r.estado}</span></td><td>${r.prioridad}</td><td>${r.fecha}</td><td><button class="btn secondary" onclick="editarRequerimiento('${r.id}')">${sesion.rol==='administrador'?'Editar':'Actualizar'}</button></td></tr>`).join('')}
+function cargarSelects(){const execs=usuarios.filter(x=>x.rol==='ejecutivo'&&x.activo);document.getElementById('filtroEjecutivo').innerHTML='<option value="">Todos los ejecutivos</option>'+execs.map(x=>`<option value="${x.usuario}">${x.nombre}</option>`).join('');document.getElementById('reqEjecutivo').innerHTML=execs.map(x=>`<option value="${x.usuario}">${x.nombre}</option>`).join('')}
+function abrirNuevo(){editando=null;document.getElementById('modalReqTitulo').textContent='Nuevo requerimiento';['reqTitulo','reqGestion'].forEach(x=>document.getElementById(x).value='');document.getElementById('reqEstado').value='Pendiente';document.getElementById('reqPrioridad').value='Media';document.getElementById('reqFecha').value='Hoy';document.getElementById('modalReq').style.display='flex'}
+function editarRequerimiento(id){editando=id;const r=requerimientos.find(x=>x.id===id);document.getElementById('modalReqTitulo').textContent='Actualizar requerimiento';document.getElementById('reqTitulo').value=r.titulo;document.getElementById('reqEjecutivo').value=r.ejecutivo;document.getElementById('reqEstado').value=r.estado;document.getElementById('reqPrioridad').value=r.prioridad;document.getElementById('reqFecha').value=r.fecha;document.getElementById('reqGestion').value=r.gestion;if(sesion.rol==='ejecutivo'){document.getElementById('reqEjecutivo').disabled=true;document.getElementById('reqTitulo').disabled=true}else{document.getElementById('reqEjecutivo').disabled=false;document.getElementById('reqTitulo').disabled=false}document.getElementById('modalReq').style.display='flex'}
+function cerrarModalReq(){document.getElementById('modalReq').style.display='none'}
+function guardarRequerimiento(){if(editando){const r=requerimientos.find(x=>x.id===editando);r.titulo=document.getElementById('reqTitulo').value;r.ejecutivo=document.getElementById('reqEjecutivo').value;r.estado=document.getElementById('reqEstado').value;r.prioridad=document.getElementById('reqPrioridad').value;r.fecha=document.getElementById('reqFecha').value;r.gestion=document.getElementById('reqGestion').value}else{requerimientos.push({id:'#'+String(requerimientos.length+1).padStart(3,'0'),titulo:document.getElementById('reqTitulo').value,gestion:document.getElementById('reqGestion').value,ejecutivo:document.getElementById('reqEjecutivo').value,estado:document.getElementById('reqEstado').value,prioridad:document.getElementById('reqPrioridad').value,fecha:document.getElementById('reqFecha').value})}cerrarModalReq();renderTodo()}
+function renderUsuarios(){document.getElementById('listaUsuarios').innerHTML=usuarios.map(u=>`<div class="user-card"><strong>${u.nombre}</strong><small>${u.rol==='administrador'?'Administrador':'Ejecutivo'} · ${u.activo?'Activo':'Inactivo'}</small><div class="user-actions"><button class="btn secondary">Editar</button><button class="btn danger" onclick="toggleUsuario('${u.usuario}')">${u.activo?'Desactivar':'Activar'}</button></div></div>`).join('')}
+function toggleUsuario(u){const x=usuarios.find(y=>y.usuario===u);if(u==='admin')return alert('El administrador principal no puede desactivarse.');x.activo=!x.activo;renderUsuarios();cargarSelects()}
+function abrirUsuario(){document.getElementById('modalUsuario').style.display='flex'}function cerrarUsuario(){document.getElementById('modalUsuario').style.display='none'}
+function guardarUsuario(){const u=document.getElementById('nuevoUsuario').value.trim().toLowerCase();const n=document.getElementById('nuevoNombre').value.trim();const c=document.getElementById('nuevaClave').value;const r=document.getElementById('nuevoRol').value;if(!u||!n||!c)return alert('Complete todos los campos.');if(usuarios.some(x=>x.usuario===u))return alert('Ese usuario ya existe.');usuarios.push({usuario:u,clave:c,nombre:n,rol:r,activo:true});cerrarUsuario();renderTodo()}
 </script>
 </body>
 </html>
