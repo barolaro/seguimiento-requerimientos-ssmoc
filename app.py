@@ -38,11 +38,9 @@ if not html_path.exists():
 
 html = html_path.read_text(encoding="utf-8")
 
-# Corrige únicamente denominaciones incorrectas, sin transformar SSMOCC nuevamente.
 html = html.replace("SSMOCCC", "SSMOCC")
 html = re.sub(r"\bSSMOC\b", "SSMOCC", html)
 
-# Reemplaza cualquier logo incrustado o roto por una imagen institucional estable.
 logo_url = "https://gestordocumentalhsjd.ceropapel.cl/archivos/publico//logos/logo3.jpg"
 html = re.sub(
     r'(<img[^>]*class=["\'][^"\']*(?:logo-login|brand-logo)[^"\']*["\'][^>]*src=)["\'][^"\']*["\']',
@@ -50,41 +48,84 @@ html = re.sub(
     html,
     flags=re.IGNORECASE,
 )
-
 html = html.replace('alt="Logo SSMOCCC"', 'alt="Logo SSMOCC"')
 
-# Refuerza la separación de información por perfil.
-# El Ejecutivo no puede ver carga, nombres ni actividad de otros integrantes.
-profile_guard = r'''
+interaction_patch = r'''
+<style>
+.execrow.executive-clickable{
+  cursor:pointer;
+  border-radius:10px;
+  padding-left:10px;
+  padding-right:10px;
+  transition:background .18s ease,transform .18s ease,box-shadow .18s ease;
+}
+.execrow.executive-clickable:hover{
+  background:#eef7fd;
+  transform:translateY(-1px);
+  box-shadow:0 5px 15px rgba(0,103,168,.10);
+}
+.execrow.executive-clickable .execname::after{
+  content:"  Ver detalle ›";
+  color:#0067a8;
+  font-size:11px;
+  font-weight:800;
+  white-space:nowrap;
+}
+.executive-modal-grid{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:10px;
+  margin:14px 0 18px;
+}
+.executive-modal-kpi{
+  background:#f6f9fc;
+  border:1px solid #dce4ec;
+  border-radius:11px;
+  padding:12px;
+}
+.executive-modal-kpi span{display:block;font-size:11px;color:#718096}
+.executive-modal-kpi strong{display:block;font-size:24px;margin-top:4px;color:#25364a}
+.executive-requirement{
+  border:1px solid #dce4ec;
+  border-radius:12px;
+  padding:13px;
+  margin-bottom:10px;
+  background:#fbfdff;
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  gap:12px;
+  align-items:center;
+}
+.executive-requirement h4{margin:0 0 5px;font-size:15px}
+.executive-requirement p{margin:0;color:#718096;font-size:12px}
+@media(max-width:760px){
+  .executive-modal-grid{grid-template-columns:1fr 1fr}
+  .executive-requirement{grid-template-columns:1fr}
+}
+</style>
+
+<div id="executiveDetailModal" class="modal hidden">
+  <div class="modalbox" style="width:min(900px,100%)">
+    <div class="modalhead">
+      <div>
+        <h2 id="executiveDetailName" style="margin:0"></h2>
+        <div class="small">Resumen individual y requerimientos asignados</div>
+      </div>
+      <button class="close" onclick="closeExecutiveDetail()">✕</button>
+    </div>
+    <div id="executiveDetailKpis" class="executive-modal-grid"></div>
+    <h3>Requerimientos del ejecutivo</h3>
+    <div id="executiveDetailRequirements"></div>
+  </div>
+</div>
+
 <script>
 (function () {
-  const originalDashboard = window.dashboard;
+  function isManagementProfile() {
+    return typeof manager === "function" && manager();
+  }
 
-  window.dashboard = function () {
-    if (typeof current === "undefined" || !current) return;
-
-    const executivePanel = document.getElementById("execSummary")?.closest(".panel");
-    const recentPanel = document.getElementById("recent")?.closest(".panel");
-    const dashboardGrid = executivePanel?.parentElement;
-
-    if (typeof manager === "function" && manager()) {
-      if (executivePanel) executivePanel.classList.remove("hidden");
-      if (recentPanel) recentPanel.classList.remove("hidden");
-      if (dashboardGrid) dashboardGrid.style.gridTemplateColumns = "1.2fr .8fr";
-      if (typeof originalDashboard === "function") originalDashboard();
-      return;
-    }
-
-    // Perfil Ejecutivo: elimina completamente la información del resto del equipo.
-    if (executivePanel) executivePanel.classList.add("hidden");
-    if (dashboardGrid) dashboardGrid.style.gridTemplateColumns = "1fr";
-
-    if (recentPanel) {
-      recentPanel.classList.remove("hidden");
-      const heading = recentPanel.querySelector("h2");
-      if (heading) heading.textContent = "Mis últimas actualizaciones";
-    }
-
+  function personalHistoryHtml() {
     const personalRequirements = req.filter(item => item.exec === current.u);
     const personalHistory = personalRequirements
       .flatMap(item => item.hist.map(event => ({...event, title: item.t})))
@@ -92,7 +133,7 @@ profile_guard = r'''
       .reverse()
       .slice(0, 8);
 
-    recent.innerHTML = personalHistory.length
+    return personalHistory.length
       ? personalHistory.map(event => `
           <div class="item">
             <b>${event.title}</b>
@@ -101,19 +142,103 @@ profile_guard = r'''
           </div>
         `).join("")
       : '<div class="item">Todavía no registra actualizaciones.</div>';
+  }
+
+  function configureDashboardByRole() {
+    if (typeof current === "undefined" || !current) return;
+
+    const executivePanel = document.getElementById("execSummary")?.closest(".panel");
+    const recentPanel = document.getElementById("recent")?.closest(".panel");
+    const dashboardGrid = executivePanel?.parentElement;
+
+    if (!isManagementProfile()) {
+      if (executivePanel) executivePanel.classList.add("hidden");
+      if (dashboardGrid) dashboardGrid.style.gridTemplateColumns = "1fr";
+      if (recentPanel) {
+        recentPanel.classList.remove("hidden");
+        const title = recentPanel.querySelector("h2");
+        if (title) title.textContent = "Mis últimas actualizaciones";
+      }
+      if (typeof recent !== "undefined") recent.innerHTML = personalHistoryHtml();
+      return;
+    }
+
+    if (executivePanel) executivePanel.classList.remove("hidden");
+    if (recentPanel) recentPanel.classList.remove("hidden");
+    if (dashboardGrid) dashboardGrid.style.gridTemplateColumns = "1.2fr .8fr";
+
+    const executives = users.filter(user => user.r === "Ejecutivo");
+    document.querySelectorAll("#execSummary .execrow").forEach((row, index) => {
+      const executive = executives[index];
+      if (!executive) return;
+      row.classList.add("executive-clickable");
+      row.setAttribute("role", "button");
+      row.setAttribute("tabindex", "0");
+      row.onclick = () => openExecutiveDetail(executive.u);
+      row.onkeydown = event => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          openExecutiveDetail(executive.u);
+        }
+      };
+    });
+  }
+
+  window.openExecutiveDetail = function (userId) {
+    if (!isManagementProfile()) return;
+
+    const executive = users.find(user => user.u === userId);
+    if (!executive) return;
+
+    const assigned = req.filter(item => item.exec === userId);
+    const active = assigned.filter(item => item.estado !== "Terminado");
+    const pending = assigned.filter(item => item.estado === "Pendiente");
+    const newAssignments = assigned.filter(item => item.alerts?.[userId]);
+
+    executiveDetailName.textContent = executive.n;
+    executiveDetailKpis.innerHTML = `
+      <div class="executive-modal-kpi"><span>Total</span><strong>${assigned.length}</strong></div>
+      <div class="executive-modal-kpi"><span>Activos</span><strong>${active.length}</strong></div>
+      <div class="executive-modal-kpi"><span>Pendientes</span><strong>${pending.length}</strong></div>
+      <div class="executive-modal-kpi"><span>Nuevas asignaciones</span><strong>${newAssignments.length}</strong></div>
+    `;
+
+    executiveDetailRequirements.innerHTML = assigned.length
+      ? assigned.map(item => `
+          <div class="executive-requirement">
+            <div>
+              <h4>#${String(item.id).padStart(3, "0")} · ${item.t}</h4>
+              <p>${item.desc}</p>
+              <p><b>Estado:</b> ${item.estado} · <b>Prioridad:</b> ${item.prio} · <b>Avance:</b> ${item.avance}%</p>
+            </div>
+            <button class="btn secondary" onclick="closeExecutiveDetail(); openDetail(${item.id})">Ver trazabilidad</button>
+          </div>
+        `).join("")
+      : '<div class="item">Este ejecutivo todavía no tiene requerimientos asignados.</div>';
+
+    executiveDetailModal.classList.remove("hidden");
   };
 
-  // Evita que una navegación o nuevo render vuelva a mostrar datos globales.
-  const originalRenderAll = window.renderAll;
-  window.renderAll = function () {
-    if (typeof originalRenderAll === "function") originalRenderAll();
-    window.dashboard();
+  window.closeExecutiveDetail = function () {
+    executiveDetailModal.classList.add("hidden");
+  };
+
+  const originalDashboard = dashboard;
+  dashboard = function () {
+    originalDashboard();
+    configureDashboardByRole();
+  };
+
+  const originalRenderAll = renderAll;
+  renderAll = function () {
+    originalRenderAll();
+    configureDashboardByRole();
   };
 })();
 </script>
 '''
 
-html = html.replace("</body>", profile_guard + "\n</body>")
+html = html.replace("</body>", interaction_patch + "\n</body>")
 
 components.html(
     html,
