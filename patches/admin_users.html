@@ -1,0 +1,118 @@
+<style>
+.admin-user-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:16px}
+.admin-stat{background:#fff;border:1px solid #dfe6ee;border-radius:13px;padding:14px;box-shadow:0 8px 22px rgba(18,55,88,.08)}
+.admin-stat span{display:block;font-size:11px;color:#6f7e91}.admin-stat strong{display:block;font-size:25px;margin-top:4px;color:#063c70}
+.admin-table{width:100%;border-collapse:collapse;min-width:1050px}.admin-table th,.admin-table td{padding:11px;border-bottom:1px solid #dfe6ee;text-align:left;font-size:12px;vertical-align:middle}.admin-table th{background:#f0f4f8;color:#5f6f82}
+.user-active{background:#e4f7ea;color:#1e7c3d}.user-inactive{background:#ffe7e7;color:#c62a36}.role-pill{background:#e7f2fc;color:#075f9c}
+.admin-actions{display:flex;gap:6px;flex-wrap:wrap}.admin-actions .btn{padding:7px 9px;font-size:11px}
+.audit-row{display:grid;grid-template-columns:145px 1fr 1fr 2fr;gap:10px;padding:10px;border-bottom:1px solid #dfe6ee;font-size:12px}.audit-row.header{font-weight:900;background:#f0f4f8;border-radius:9px}.audit-row small{color:#6f7e91}
+.admin-note{background:#eef7fd;border-left:4px solid #0877c9;padding:11px 13px;border-radius:0 9px 9px 0;margin-bottom:14px}
+@media(max-width:1000px){.admin-user-grid{grid-template-columns:1fr 1fr}.audit-row{grid-template-columns:1fr 1fr}}
+@media(max-width:700px){.admin-user-grid{grid-template-columns:1fr}.audit-row{grid-template-columns:1fr}}
+</style>
+
+<div id="userAdminModal" class="modal hidden">
+  <div class="modal-box" style="width:min(780px,100%)">
+    <div class="modal-head">
+      <div><h2 id="userFormTitle" style="margin:0">Agregar usuario</h2><div class="small">Los cambios quedarán registrados en la auditoría.</div></div>
+      <button class="close" onclick="closeUserForm()">✕</button>
+    </div>
+    <div class="form-grid">
+      <div class="full"><label>Nombre completo</label><input id="userFullName" placeholder="Nombre y apellidos"></div>
+      <div><label>Usuario</label><input id="userLogin" placeholder="Ej.: mrojas"></div>
+      <div><label>Iniciales</label><input id="userInitials" maxlength="3" placeholder="MR"></div>
+      <div><label>Rol</label><select id="userRole"><option>Ejecutivo</option><option>Jefa de Unidad</option><option>Jefe de Departamento</option><option>Administrador</option></select></div>
+      <div><label>Estado</label><select id="userStatus"><option value="true">Activo</option><option value="false">Inactivo</option></select></div>
+      <div class="full"><label>Observación</label><textarea id="userObservation" placeholder="Motivo del alta, cambio de rol o desactivación"></textarea></div>
+    </div>
+    <div class="modal-actions"><button class="btn btn-secondary" onclick="closeUserForm()">Cancelar</button><button class="btn btn-primary" onclick="saveUserProfile()">Guardar perfil</button></div>
+  </div>
+</div>
+
+<script>
+(function(){
+  let editingUserId=null;
+  const userAudit=[];
+
+  function ensureUserStatus(){users.forEach(user=>{if(typeof user.active==='undefined')user.active=true})}
+  function isAdministrator(){return current?.r==='Administrador'}
+  function timestamp(){return new Date().toLocaleString('es-CL',{dateStyle:'short',timeStyle:'short'})}
+  function audit(action,target,detail){userAudit.unshift({date:timestamp(),actor:current?.n||'Sistema',action,target,detail})}
+  function initialsFromName(value){return value.trim().split(/\s+/).slice(0,2).map(part=>part[0]||'').join('').toUpperCase()}
+  function activeAssigned(userId){return req.filter(item=>item.exec===userId&&item.estado!=='Terminado').length}
+
+  window.installUserAdministration=function(){
+    ensureUserStatus();
+    const nav=document.querySelector('.nav');
+    if(nav&&!document.getElementById('adminUsersNav')){
+      const button=document.createElement('button');
+      button.id='adminUsersNav';button.className='administrator-only';button.innerHTML='⚙ Administración';
+      button.onclick=function(){show('userAdministration',button)};
+      nav.appendChild(button);
+    }
+    const main=document.querySelector('.main');
+    if(main&&!document.getElementById('userAdministration')){
+      const section=document.createElement('section');
+      section.id='userAdministration';section.className='hidden administrator-only';
+      section.innerHTML=`
+        <div class="header"><div><div class="system-title" style="font-size:26px">Administración de usuarios</div><div class="system-subtitle">Alta, modificación, desactivación y roles auditables</div></div><button class="btn btn-primary" onclick="openUserForm()">+ Agregar perfil</button></div>
+        <div class="admin-note"><b>Gobernanza:</b> solo el Administrador puede modificar perfiles. La Jefa de Unidad y el Jefe de Departamento quedan identificados nominalmente para auditar asignaciones y reasignaciones.</div>
+        <div id="adminUserStats" class="admin-user-grid"></div>
+        <div class="panel"><div class="panel-title"><h2>Usuarios y perfiles</h2><input id="adminUserSearch" style="max-width:320px" placeholder="Buscar usuario..." oninput="renderUserAdministration()"></div><div class="table-wrap"><table class="admin-table"><thead><tr><th>Nombre</th><th>Usuario</th><th>Rol</th><th>Estado</th><th>Requerimientos activos</th><th>Acciones</th></tr></thead><tbody id="adminUsersBody"></tbody></table></div></div>
+        <div class="panel" style="margin-top:16px"><div class="panel-title"><h2>Auditoría de perfiles</h2></div><div class="audit-row header"><div>Fecha</div><div>Usuario actor</div><div>Acción</div><div>Detalle</div></div><div id="userAuditBody"></div></div>`;
+      main.appendChild(section);
+    }
+    applyAdministratorVisibility();renderUserAdministration();
+  };
+
+  window.applyAdministratorVisibility=function(){document.querySelectorAll('.administrator-only').forEach(node=>node.classList.toggle('hidden',!isAdministrator()))}
+
+  window.renderUserAdministration=function(){
+    if(!document.getElementById('adminUsersBody'))return;
+    ensureUserStatus();
+    const search=(document.getElementById('adminUserSearch')?.value||'').toLowerCase();
+    const filtered=users.filter(user=>(user.n+' '+user.u+' '+user.r).toLowerCase().includes(search));
+    adminUserStats.innerHTML=`<div class="admin-stat"><span>Total de perfiles</span><strong>${users.length}</strong></div><div class="admin-stat"><span>Ejecutivos activos</span><strong>${users.filter(u=>u.r==='Ejecutivo'&&u.active).length}</strong></div><div class="admin-stat"><span>Perfiles de jefatura</span><strong>${users.filter(u=>['Jefa de Unidad','Jefe de Departamento'].includes(u.r)&&u.active).length}</strong></div><div class="admin-stat"><span>Perfiles inactivos</span><strong>${users.filter(u=>!u.active).length}</strong></div>`;
+    adminUsersBody.innerHTML=filtered.map(user=>`<tr><td><div class="person"><div class="mini-avatar">${user.i}</div><div><b>${user.n}</b><br><small>${user.r==='Jefa de Unidad'?'Responsable principal de asignaciones':user.r==='Jefe de Departamento'?'Continuidad y subrogancia':'Perfil operacional'}</small></div></div></td><td>${user.u}</td><td><span class="badge role-pill">${user.r}</span></td><td><span class="badge ${user.active?'user-active':'user-inactive'}">${user.active?'Activo':'Inactivo'}</span></td><td>${activeAssigned(user.u)}</td><td><div class="admin-actions"><button class="btn btn-secondary" onclick="openUserForm('${user.u}')">Editar</button><button class="btn ${user.active?'btn-danger':'btn-secondary'}" onclick="toggleUserStatus('${user.u}')">${user.active?'Desactivar':'Activar'}</button>${user.r==='Ejecutivo'?`<button class="btn btn-danger" onclick="deleteUserProfile('${user.u}')">Quitar</button>`:''}</div></td></tr>`).join('');
+    userAuditBody.innerHTML=userAudit.length?userAudit.map(item=>`<div class="audit-row"><div>${item.date}</div><div>${item.actor}</div><div><b>${item.action}</b><br><small>${item.target}</small></div><div>${item.detail}</div></div>`).join(''):'<div class="audit-row"><div>—</div><div>Sistema</div><div>Sin movimientos</div><div>La auditoría comenzará cuando se modifique un perfil.</div></div>';
+  };
+
+  window.openUserForm=function(userId=null){
+    if(!isAdministrator())return alert('Solo el Administrador puede modificar perfiles.');
+    editingUserId=userId;const user=userId?users.find(item=>item.u===userId):null;
+    userFormTitle.textContent=user?'Editar perfil':'Agregar perfil';userFullName.value=user?.n||'';userLogin.value=user?.u||'';userLogin.disabled=Boolean(user);userInitials.value=user?.i||'';userRole.value=user?.r||'Ejecutivo';userStatus.value=String(user?.active??true);userObservation.value='';userAdminModal.classList.remove('hidden');
+  };
+  window.closeUserForm=function(){userAdminModal.classList.add('hidden');editingUserId=null}
+
+  window.saveUserProfile=function(){
+    if(!isAdministrator())return;
+    const fullName=userFullName.value.trim(),login=userLogin.value.trim().toLowerCase(),role=userRole.value,active=userStatus.value==='true',observation=userObservation.value.trim();
+    if(!fullName||!login)return alert('Complete nombre y usuario.');
+    if(!/^[a-z0-9._-]+$/.test(login))return alert('El usuario solo puede contener letras minúsculas, números, punto, guion o guion bajo.');
+    if(editingUserId){
+      const user=users.find(item=>item.u===editingUserId);const before=`${user.n} · ${user.r} · ${user.active?'Activo':'Inactivo'}`;user.n=fullName;user.i=(userInitials.value.trim()||initialsFromName(fullName)).toUpperCase();user.r=role;user.active=active;audit('Perfil modificado',user.n,`${before} → ${user.r} · ${user.active?'Activo':'Inactivo'}${observation?`. ${observation}`:''}`);
+    }else{
+      if(users.some(item=>item.u===login))return alert('Ese nombre de usuario ya existe.');
+      const newUser={u:login,n:fullName,r:role,i:(userInitials.value.trim()||initialsFromName(fullName)).toUpperCase(),active};users.push(newUser);audit('Perfil creado',newUser.n,`Usuario ${login}, rol ${role}, estado ${active?'Activo':'Inactivo'}${observation?`. ${observation}`:''}`);
+    }
+    closeUserForm();fillSelects();renderAll();renderUserAdministration();alert('Perfil guardado correctamente.');
+  };
+
+  window.toggleUserStatus=function(userId){
+    if(!isAdministrator())return;const user=users.find(item=>item.u===userId);if(!user)return;
+    if(user.u===current.u&&user.active)return alert('No puede desactivar su propio perfil durante la sesión.');
+    user.active=!user.active;audit(user.active?'Perfil activado':'Perfil desactivado',user.n,`Estado cambiado a ${user.active?'Activo':'Inactivo'}.`);renderUserAdministration();
+  };
+
+  window.deleteUserProfile=function(userId){
+    if(!isAdministrator())return;const user=users.find(item=>item.u===userId);if(!user)return;
+    const assigned=activeAssigned(userId);if(assigned>0)return alert(`No se puede quitar el perfil: tiene ${assigned} requerimiento(s) activo(s). Reasígnelos primero.`);
+    if(!confirm(`¿Quitar el perfil de ${user.n}? La acción quedará auditada.`))return;
+    users.splice(users.indexOf(user),1);audit('Perfil quitado',user.n,`Se eliminó el usuario ${user.u} sin requerimientos activos.`);fillSelects();renderAll();renderUserAdministration();
+  };
+
+  const originalLogin=window.login;window.login=function(){originalLogin();ensureUserStatus();if(!current.active){alert('Este perfil se encuentra inactivo.');location.reload();return}installUserAdministration();applyAdministratorVisibility()};
+  const originalShow=window.show;window.show=function(id,button){['userAdministration'].forEach(sectionId=>document.getElementById(sectionId)?.classList.add('hidden'));originalShow(id,button);if(id==='userAdministration'){['dashboard','requirements','team','trace','alerts','reports','indicators'].forEach(sectionId=>document.getElementById(sectionId)?.classList.add('hidden'));document.getElementById('userAdministration')?.classList.remove('hidden');renderUserAdministration()}};
+  document.addEventListener('DOMContentLoaded',installUserAdministration);
+})();
+</script>
