@@ -1,0 +1,89 @@
+<style>
+/* DASHBOARD PROFESIONAL */
+#dashboard .header{align-items:center!important;margin-bottom:18px!important}
+#dashboard .header::after{content:"";display:block;width:100%;height:1px;background:#e3eaf1;margin-top:4px}
+#dashboard .system-title{font-size:32px!important;line-height:1.08!important;letter-spacing:-.03em}
+#dashboard .system-subtitle{font-size:14px!important;color:#66778b!important}
+#dashboard .kpis{grid-template-columns:repeat(5,minmax(0,1fr))!important;gap:12px!important}
+#dashboard .kpi{min-height:104px;padding:14px!important;border-radius:16px!important;position:relative;overflow:hidden}
+#dashboard .kpi::after{content:"";position:absolute;right:-18px;bottom:-22px;width:74px;height:74px;border-radius:50%;background:rgba(8,119,201,.05)}
+#dashboard .kpi-icon{width:42px!important;height:42px!important;border-radius:12px!important;font-size:18px!important}
+#dashboard .kpi-label{font-size:12px!important;color:#506176}
+#dashboard .kpi-value{font-size:28px!important}
+#dashboard .kpi-note{font-size:10px!important}
+#dashboard .grid2{grid-template-columns:1.1fr .9fr!important}
+#dashboard .grid3{grid-template-columns:1fr 1fr 1fr!important}
+#dashboard .panel{border-radius:16px!important}
+#dashboard .panel-title h2{font-size:15px!important}
+.work-table th{font-size:10px!important;text-transform:uppercase;letter-spacing:.04em}
+.work-table td{font-size:11px!important}
+.alert-row{box-shadow:0 4px 14px rgba(18,55,88,.04)}
+.req-table th{font-size:10px!important;text-transform:uppercase;letter-spacing:.035em}
+.req-table td{font-size:11px!important}
+
+/* BARRA DE ACCIONES EJECUTIVA */
+.pro-actions{display:flex;gap:9px;flex-wrap:wrap;justify-content:flex-end;margin:0 0 16px}
+.pro-actions .btn{display:inline-flex;align-items:center;gap:7px}
+
+/* REPORTE PROFESIONAL */
+.pro-report-overlay{position:fixed;inset:0;background:rgba(12,30,49,.6);z-index:200;display:flex;align-items:center;justify-content:center;padding:18px}
+.pro-report-window{width:min(1080px,100%);max-height:94vh;overflow:auto;background:#fff;border-radius:20px;box-shadow:0 30px 80px rgba(0,0,0,.3)}
+.pro-report-head{display:flex;justify-content:space-between;align-items:center;padding:18px 20px;border-bottom:1px solid #e1e8ef}
+.pro-report-head h2{margin:0;color:#063c70;font-size:18px}
+.pro-report-body{padding:22px}
+.pro-report-cover{display:grid;grid-template-columns:180px 1fr;gap:20px;align-items:center;border-bottom:4px solid #0877c9;padding-bottom:16px;margin-bottom:18px}
+.pro-report-logo{width:170px;max-height:120px;object-fit:contain;border-radius:8px}
+.pro-report-title h1{margin:0;color:#063c70;font-size:25px;line-height:1.12}
+.pro-report-title p{margin:6px 0 0;color:#64758a;font-size:12px}
+.pro-report-meta{display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap;background:#f7f9fc;border:1px solid #e1e8ef;border-radius:12px;padding:11px 13px;margin-bottom:16px;font-size:11px;color:#5e6f82}
+.pro-report-kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:9px;margin-bottom:18px}
+.pro-report-kpi{border:1px solid #e1e8ef;border-radius:11px;padding:10px;background:#fff}
+.pro-report-kpi span{display:block;color:#6f7e91;font-size:10px}.pro-report-kpi strong{display:block;color:#063c70;font-size:23px;margin-top:3px}
+.pro-report-section{margin-top:18px}.pro-report-section h3{font-size:15px;color:#063c70;margin:0 0 9px;border-bottom:2px solid #e3edf6;padding-bottom:7px}
+.pro-report-table{width:100%;border-collapse:collapse;font-size:10px}.pro-report-table th,.pro-report-table td{border:1px solid #dfe6ee;padding:6px;text-align:left}.pro-report-table th{background:#edf4f9;color:#063c70;text-transform:uppercase;font-size:9px}
+.pro-report-alert{padding:9px 11px;border-left:4px solid #ed1c2e;background:#fff5f5;border-radius:0 8px 8px 0;margin-bottom:7px;font-size:11px}.pro-report-alert.orange{border-left-color:#ff851b;background:#fff8ef}.pro-report-alert.green{border-left-color:#22a447;background:#f1fbf4}
+.pro-report-footer{margin-top:22px;padding-top:12px;border-top:1px solid #e1e8ef;display:flex;justify-content:space-between;gap:10px;color:#6f7e91;font-size:9px}
+.pro-report-actions{display:flex;gap:8px;justify-content:flex-end;padding:14px 20px;border-top:1px solid #e1e8ef;background:#f8fafc}
+@media(max-width:980px){#dashboard .kpis{grid-template-columns:repeat(3,1fr)!important}.pro-report-kpis{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:680px){#dashboard .kpis{grid-template-columns:1fr 1fr!important}#dashboard .grid2,#dashboard .grid3{grid-template-columns:1fr!important}.pro-report-cover{grid-template-columns:1fr}.pro-report-logo{width:130px}.pro-report-kpis{grid-template-columns:1fr 1fr}}
+@media print{body>*{display:none!important}.pro-report-overlay{position:static!important;display:block!important;background:#fff!important;padding:0!important}.pro-report-window{box-shadow:none!important;max-height:none!important}.pro-report-head,.pro-report-actions{display:none!important}.pro-report-body{padding:0!important}}
+</style>
+
+<script>
+(function(){
+ const LOGO='https://gestordocumentalhsjd.ceropapel.cl/archivos/publico//logos/logo3.jpg';
+ const AUTHOR='Bayron Retamal González';
+
+ function installDashboardActions(){
+   const header=document.querySelector('#dashboard .header');
+   if(!header||document.getElementById('proActions'))return;
+   const actions=document.createElement('div');actions.id='proActions';actions.className='pro-actions';
+   actions.innerHTML=`<button class="btn btn-secondary manager" onclick="show('reports')">▥ Reportes</button><button class="btn btn-secondary manager" onclick="show('team')">♙ Ver carga</button><button class="btn btn-primary manager" onclick="openAssign()">＋ Nuevo requerimiento</button>`;
+   header.insertAdjacentElement('afterend',actions);
+   actions.querySelectorAll('.manager').forEach(x=>x.classList.toggle('hidden',typeof isManager==='function'?!isManager():false));
+ }
+
+ function reportRows(){
+   return executives().map(u=>{
+     const assigned=req.filter(x=>x.exec===u.u),activeCount=assigned.filter(x=>x.estado!=='Terminado').length;
+     return `<tr><td>${u.n}</td><td>${assigned.length}</td><td>${activeCount}</td><td>${assigned.filter(x=>x.estado==='En ejecución').length}</td><td>${assigned.filter(x=>x.estado==='Pendiente').length}</td><td>${assigned.filter(x=>x.prio==='Alta'&&x.estado!=='Terminado').length}</td><td>${score(u.u)}</td><td>${load(u.u).label}</td></tr>`;
+   }).join('');
+ }
+
+ function criticalRows(){
+   const items=req.filter(x=>x.estado!=='Terminado'&&(x.vencido||x.dias>7||x.prio==='Alta'));
+   return items.length?items.map(x=>`<tr><td>REQ-${String(x.id).padStart(3,'0')}</td><td>${x.t}</td><td>${name(x.exec)}</td><td>${x.estado}</td><td>${x.prio}</td><td>${x.avance}%</td><td>${x.dias} días</td></tr>`).join(''):'<tr><td colspan="7">No existen requerimientos críticos al momento de emitir el reporte.</td></tr>';
+ }
+
+ window.generateWeeklyReport=function(){
+   if(typeof isManager==='function'&&!isManager())return alert('Disponible solo para perfiles de gestión.');
+   const activeItems=req.filter(x=>x.estado!=='Terminado'),execution=activeItems.filter(x=>x.estado==='En ejecución'),pending=activeItems.filter(x=>x.estado==='Pendiente'),done=req.filter(x=>x.estado==='Terminado'),overdue=activeItems.filter(x=>x.vencido),stale=activeItems.filter(x=>x.dias>7),high=activeItems.filter(x=>x.prio==='Alta'),overloaded=executives().filter(u=>load(u.u).label==='SOBRECARGA');
+   const overlay=document.createElement('div');overlay.className='pro-report-overlay';overlay.id='proReport';
+   overlay.innerHTML=`<div class="pro-report-window"><div class="pro-report-head"><div><h2>Reporte Ejecutivo de Gestión</h2><div style="font-size:11px;color:#6f7e91">Vista previa institucional</div></div><button class="close" onclick="document.getElementById('proReport').remove()">✕</button></div><div class="pro-report-body"><div class="pro-report-cover"><img class="pro-report-logo" src="${LOGO}" alt="SSMOCC"><div class="pro-report-title"><h1>Sistema de Gestión y Trazabilidad para Compras Públicas</h1><p>Departamento de Abastecimiento · Servicio de Salud Metropolitano Occidente</p></div></div><div class="pro-report-meta"><div><b>Fecha de emisión:</b> ${new Date().toLocaleString('es-CL')}</div><div><b>Generado por:</b> ${current?.n||'Sistema'} (${current?.r||''})</div></div><div class="pro-report-kpis"><div class="pro-report-kpi"><span>Activos</span><strong>${activeItems.length}</strong></div><div class="pro-report-kpi"><span>En ejecución</span><strong>${execution.length}</strong></div><div class="pro-report-kpi"><span>Pendientes</span><strong>${pending.length}</strong></div><div class="pro-report-kpi"><span>Terminados</span><strong>${done.length}</strong></div><div class="pro-report-kpi"><span>Vencidos</span><strong>${overdue.length}</strong></div><div class="pro-report-kpi"><span>Sobrecarga</span><strong>${overloaded.length}</strong></div></div><div class="pro-report-section"><h3>Alertas prioritarias</h3>${overdue.length?`<div class="pro-report-alert"><b>${overdue.length} requerimiento(s) vencido(s)</b> que requieren atención inmediata.</div>`:''}${stale.length?`<div class="pro-report-alert orange"><b>${stale.length} requerimiento(s) sin actualización por más de 7 días.</b></div>`:''}${high.length?`<div class="pro-report-alert orange"><b>${high.length} requerimiento(s) de alta prioridad activos.</b></div>`:''}${(!overdue.length&&!stale.length&&!high.length)?'<div class="pro-report-alert green"><b>No se registran alertas críticas.</b></div>':''}</div><div class="pro-report-section"><h3>Carga de trabajo por ejecutivo</h3><table class="pro-report-table"><thead><tr><th>Ejecutivo</th><th>Total</th><th>Activos</th><th>Ejecución</th><th>Pendientes</th><th>Alta</th><th>Puntaje</th><th>Clasificación</th></tr></thead><tbody>${reportRows()}</tbody></table></div><div class="pro-report-section"><h3>Requerimientos que requieren atención</h3><table class="pro-report-table"><thead><tr><th>ID</th><th>Requerimiento</th><th>Responsable</th><th>Estado</th><th>Prioridad</th><th>Avance</th><th>Antigüedad</th></tr></thead><tbody>${criticalRows()}</tbody></table></div><div class="pro-report-footer"><span>Diseñado y desarrollado por <b>${AUTHOR}</b></span><span>Documento de apoyo a la gestión · SSMOCC</span></div></div><div class="pro-report-actions"><button class="btn btn-secondary" onclick="document.getElementById('proReport').remove()">Cerrar</button><button class="btn btn-primary" onclick="window.print()">Imprimir / Guardar PDF</button></div></div>`;
+   document.body.appendChild(overlay);
+ };
+
+ const originalLogin=window.login;window.login=function(){originalLogin();setTimeout(installDashboardActions,20)};
+ const observer=new MutationObserver(installDashboardActions);observer.observe(document.body,{childList:true,subtree:true});
+})();
+</script>
