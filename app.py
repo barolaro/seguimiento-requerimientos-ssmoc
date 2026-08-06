@@ -40,7 +40,7 @@ st.markdown(
     }
 
     .stApp {
-        background: #f5f7fa;
+        background: #f4f7fb;
     }
 
     iframe {
@@ -57,6 +57,7 @@ base_dir = Path(__file__).parent
 html_path = base_dir / "index.html"
 admin_patch_path = base_dir / "patches" / "admin_users.html"
 runtime_patch_path = base_dir / "patches" / "runtime_tools.html"
+modern_topbar_path = base_dir / "patches" / "modern_topbar.html"
 
 if not html_path.exists():
     st.error("No se encontró el archivo index.html en el repositorio.")
@@ -65,6 +66,7 @@ if not html_path.exists():
 html = html_path.read_text(encoding="utf-8")
 admin_patch = admin_patch_path.read_text(encoding="utf-8") if admin_patch_path.exists() else ""
 runtime_patch = runtime_patch_path.read_text(encoding="utf-8") if runtime_patch_path.exists() else ""
+modern_topbar_patch = modern_topbar_path.read_text(encoding="utf-8") if modern_topbar_path.exists() else ""
 
 # Activa los botones de reportes en el HTML principal.
 html = html.replace(
@@ -83,13 +85,15 @@ html = html.replace(
     1,
 )
 
-# Integra módulos antes del cierre del documento.
+# Orden de integración:
+# 1. Administración de usuarios.
+# 2. Herramientas y autoría.
+# 3. Tema ejecutivo y navegación superior.
 html = html.replace(
     "</body>",
-    admin_patch + runtime_patch + "\n</body>",
+    admin_patch + runtime_patch + modern_topbar_patch + "\n</body>",
 )
 
-# Altura cercana al área visible real. El contenido largo usa scroll dentro del visor.
 components.html(
     html,
     height=900,
