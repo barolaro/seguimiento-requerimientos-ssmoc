@@ -15,42 +15,28 @@ st.markdown(
     <style>
     [data-testid="stHeader"],
     [data-testid="stSidebar"],
-    [data-testid="stToolbar"] {
-        display: none;
-    }
-
-    #MainMenu,
-    footer {
-        visibility: hidden;
-    }
-
-    .block-container {
-        padding: 0 !important;
-        max-width: 100% !important;
-    }
-
-    .stApp {
-        background: #f5f7fa;
-    }
-
-    iframe {
-        border: 0 !important;
-        display: block;
-    }
+    [data-testid="stToolbar"] {display: none;}
+    #MainMenu, footer {visibility: hidden;}
+    .block-container {padding: 0 !important; max-width: 100% !important;}
+    .stApp {background: #f5f7fa;}
+    iframe {border: 0 !important; display: block;}
     </style>
     """,
     unsafe_allow_html=True,
 )
 
-html_path = Path(__file__).with_name("index.html")
+base_dir = Path(__file__).parent
+html_path = base_dir / "index.html"
+admin_patch_path = base_dir / "patches" / "admin_users.html"
 
 if not html_path.exists():
     st.error("No se encontró el archivo index.html en el repositorio.")
     st.stop()
 
 html = html_path.read_text(encoding="utf-8")
+admin_patch = admin_patch_path.read_text(encoding="utf-8") if admin_patch_path.exists() else ""
 
-# Activa los botones visibles de la sección Reportes.
+# Activa los tres botones visibles de la sección Reportes.
 html = html.replace(
     '<button class="btn btn-primary">Generar</button>',
     '<button class="btn btn-primary" onclick="generateWeeklyReport()">Generar</button>',
@@ -67,262 +53,119 @@ html = html.replace(
     1,
 )
 
-reports_patch = r'''
+runtime_patch = r'''
 <style>
-.report-toolbar{
-  display:flex;
-  gap:9px;
-  flex-wrap:wrap;
-  justify-content:flex-end;
+.developer-credit{
+  font-size:11px;
+  line-height:1.4;
+  color:rgba(255,255,255,.84);
+  margin:10px 0 12px;
+  padding-top:10px;
+  border-top:1px solid rgba(255,255,255,.15);
+}
+.developer-credit strong{display:block;color:#fff;font-size:12px}
+.login-developer{
   margin-top:16px;
-}
-.report-document{
-  font-family:Arial,sans-serif;
-  color:#132b49;
-}
-.report-document h1{
-  color:#063c70;
-  font-size:24px;
-  margin-bottom:4px;
-}
-.report-document h2{
-  color:#063c70;
-  font-size:17px;
-  border-bottom:2px solid #0877c9;
-  padding-bottom:6px;
-  margin-top:22px;
-}
-.report-meta{
+  padding-top:13px;
+  border-top:1px solid #dfe6ee;
+  text-align:center;
   color:#6f7e91;
-  font-size:12px;
-  margin-bottom:18px;
+  font-size:11px;
 }
-.report-kpis{
-  display:grid;
-  grid-template-columns:repeat(4,1fr);
-  gap:10px;
-  margin:14px 0;
-}
-.report-kpi{
+.login-developer strong{color:#063c70}
+.system-developer-badge{
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  margin-top:10px;
+  padding:7px 11px;
   border:1px solid #dfe6ee;
-  border-radius:10px;
-  padding:11px;
-  background:#f8fafc;
-}
-.report-kpi span{display:block;font-size:11px;color:#6f7e91}
-.report-kpi strong{display:block;font-size:22px;margin-top:4px}
-.report-table{width:100%;border-collapse:collapse;font-size:12px}
-.report-table th,.report-table td{border:1px solid #dfe6ee;padding:7px;text-align:left}
-.report-table th{background:#edf4f9;color:#063c70}
-.report-alert{border-left:4px solid #ed1c2e;padding:9px 11px;background:#fff4f4;margin-bottom:8px;border-radius:0 8px 8px 0}
-.report-success{border-left-color:#22a447;background:#f1fbf4}
-.report-toast{
-  position:fixed;
-  right:22px;
-  bottom:22px;
-  z-index:120;
-  background:#063c70;
-  color:#fff;
-  padding:12px 16px;
-  border-radius:10px;
-  box-shadow:0 10px 28px rgba(0,0,0,.22);
-  font-size:13px;
+  border-radius:999px;
+  background:#fff;
+  color:#063c70;
+  font-size:11px;
   font-weight:800;
+  box-shadow:0 5px 14px rgba(18,55,88,.06);
 }
-@media(max-width:760px){.report-kpis{grid-template-columns:1fr 1fr}}
+.system-toast{
+  position:fixed;right:22px;bottom:22px;z-index:150;
+  padding:12px 16px;border-radius:10px;background:#063c70;color:#fff;
+  box-shadow:0 10px 28px rgba(0,0,0,.22);font-size:12px;font-weight:800;
+}
 </style>
-
-<div id="weeklyReportModal" class="modal hidden">
-  <div class="modal-box" style="width:min(1000px,100%)">
-    <div class="modal-head">
-      <div>
-        <h2 style="margin:0">Reporte Ejecutivo Semanal</h2>
-        <div class="small">Vista previa lista para imprimir o guardar como PDF</div>
-      </div>
-      <button class="close" onclick="weeklyReportModal.classList.add('hidden')">✕</button>
-    </div>
-    <div id="weeklyReportContent" class="report-document"></div>
-    <div class="report-toolbar">
-      <button class="btn btn-secondary" onclick="weeklyReportModal.classList.add('hidden')">Cerrar</button>
-      <button class="btn btn-primary" onclick="printWeeklyReport()">Imprimir / Guardar PDF</button>
-    </div>
-  </div>
-</div>
-
 <script>
 (function(){
-  const escapeCsv = value => {
-    const text = String(value ?? '');
-    return `"${text.replaceAll('"','""')}"`;
-  };
+  const AUTHOR='Bayron Retamal González';
 
-  const downloadCsv = (filename, headers, rows) => {
-    const separator = ';';
-    const content = [
-      headers.map(escapeCsv).join(separator),
-      ...rows.map(row => row.map(escapeCsv).join(separator))
-    ].join('\n');
-    const blob = new Blob(['\ufeff' + content], {type:'text/csv;charset=utf-8;'});
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
-  };
-
-  const toast = message => {
-    const node = document.createElement('div');
-    node.className = 'report-toast';
-    node.textContent = message;
-    document.body.appendChild(node);
-    setTimeout(() => node.remove(), 2800);
-  };
-
-  const todayLabel = () => new Date().toLocaleDateString('es-CL', {
-    day:'2-digit', month:'2-digit', year:'numeric'
-  });
-
-  window.exportWorkloadCsv = function(){
-    if (typeof isManager !== 'function' || !isManager()) {
-      alert('Este reporte está disponible solo para perfiles de gestión.');
-      return;
+  function installDeveloperIdentity(){
+    const loginCard=document.querySelector('.login-card');
+    if(loginCard&&!loginCard.querySelector('.login-developer')){
+      loginCard.insertAdjacentHTML('beforeend',`<div class="login-developer">Diseño y desarrollo<br><strong>${AUTHOR}</strong></div>`);
     }
-    const rows = executives().map(user => {
-      const assigned = req.filter(item => item.exec === user.u);
-      const activeItems = assigned.filter(item => item.estado !== 'Terminado');
-      const workload = load(user.u);
-      return [
-        user.n,
-        assigned.length,
-        activeItems.length,
-        assigned.filter(item => item.estado === 'Pendiente').length,
-        assigned.filter(item => item.estado === 'En ejecución').length,
-        assigned.filter(item => item.prio === 'Alta' && item.estado !== 'Terminado').length,
-        score(user.u),
-        workload.label
-      ];
-    });
-    downloadCsv(
-      `carga_ejecutivos_${new Date().toISOString().slice(0,10)}.csv`,
-      ['Ejecutivo','Total','Activos','Pendientes','En ejecución','Alta prioridad','Carga ponderada','Clasificación'],
-      rows
-    );
-    toast('Reporte de carga descargado correctamente.');
+
+    const sidebarFoot=document.querySelector('.sidebar-foot');
+    if(sidebarFoot&&!sidebarFoot.querySelector('.developer-credit')){
+      sidebarFoot.insertAdjacentHTML('afterbegin',`<div class="developer-credit">Desarrollado por<strong>${AUTHOR}</strong></div>`);
+    }
+
+    const subtitle=document.querySelector('#dashboard .system-subtitle');
+    if(subtitle&&!document.querySelector('.system-developer-badge')){
+      subtitle.insertAdjacentHTML('afterend',`<div class="system-developer-badge">◈ Desarrollo interno · ${AUTHOR}</div>`);
+    }
+  }
+
+  function csvEscape(value){return `"${String(value??'').replaceAll('"','""')}"`}
+  function downloadCsv(filename,headers,rows){
+    const text=[headers,...rows].map(row=>row.map(csvEscape).join(';')).join('\n');
+    const blob=new Blob(['\ufeff'+text],{type:'text/csv;charset=utf-8;'});
+    const url=URL.createObjectURL(blob),link=document.createElement('a');
+    link.href=url;link.download=filename;document.body.appendChild(link);link.click();link.remove();URL.revokeObjectURL(url);
+  }
+  function toast(message){const node=document.createElement('div');node.className='system-toast';node.textContent=message;document.body.appendChild(node);setTimeout(()=>node.remove(),2600)}
+
+  window.exportWorkloadCsv=function(){
+    if(typeof isManager==='function'&&!isManager())return alert('Disponible solo para perfiles de gestión.');
+    const rows=executives().map(user=>[
+      user.n,
+      req.filter(item=>item.exec===user.u).length,
+      active(user.u).length,
+      req.filter(item=>item.exec===user.u&&item.estado==='Pendiente').length,
+      req.filter(item=>item.exec===user.u&&item.estado==='En ejecución').length,
+      score(user.u),
+      load(user.u).label
+    ]);
+    downloadCsv(`carga_ejecutivos_${new Date().toISOString().slice(0,10)}.csv`,['Ejecutivo','Total','Activos','Pendientes','En ejecución','Puntaje','Carga'],rows);
+    toast('Reporte de carga descargado.');
   };
 
-  window.exportTraceCsv = function(){
-    const data = typeof visible === 'function' ? visible() : req;
-    const rows = data.flatMap(item => item.hist.map(event => [
-      `REQ-${String(item.id).padStart(3,'0')}`,
-      item.t,
-      name(item.exec),
-      item.estado,
-      item.prio,
-      event.f,
-      name(event.u),
-      event.estado || item.estado,
-      event.d
+  window.exportTraceCsv=function(){
+    const data=typeof visible==='function'?visible():req;
+    const rows=data.flatMap(item=>item.hist.map(event=>[
+      `REQ-${String(item.id).padStart(3,'0')}`,item.t,name(item.exec),item.estado,item.prio,event.f,name(event.u),event.estado||item.estado,event.d
     ]));
-    downloadCsv(
-      `trazabilidad_${new Date().toISOString().slice(0,10)}.csv`,
-      ['ID','Requerimiento','Responsable actual','Estado actual','Prioridad','Fecha evento','Usuario evento','Estado evento','Detalle'],
-      rows
-    );
-    toast('Trazabilidad descargada correctamente.');
+    downloadCsv(`trazabilidad_${new Date().toISOString().slice(0,10)}.csv`,['ID','Requerimiento','Responsable','Estado actual','Prioridad','Fecha evento','Usuario','Estado evento','Detalle'],rows);
+    toast('Trazabilidad descargada.');
   };
 
-  window.generateWeeklyReport = function(){
-    if (typeof isManager !== 'function' || !isManager()) {
-      alert('Este reporte está disponible solo para perfiles de gestión.');
-      return;
-    }
-
-    const activeItems = req.filter(item => item.estado !== 'Terminado');
-    const overdue = activeItems.filter(item => item.vencido);
-    const stale = activeItems.filter(item => item.dias > 7);
-    const done = req.filter(item => item.estado === 'Terminado');
-    const high = activeItems.filter(item => item.prio === 'Alta');
-    const overloaded = executives().filter(user => load(user.u).label === 'SOBRECARGA');
-
-    const workloadRows = executives().map(user => {
-      const assigned = req.filter(item => item.exec === user.u);
-      const workload = load(user.u);
-      return `<tr>
-        <td>${user.n}</td>
-        <td>${assigned.filter(item => item.estado !== 'Terminado').length}</td>
-        <td>${assigned.filter(item => item.prio === 'Alta' && item.estado !== 'Terminado').length}</td>
-        <td>${score(user.u)}</td>
-        <td>${workload.label}</td>
-      </tr>`;
-    }).join('');
-
-    const alertsHtml = [
-      overdue.length ? `<div class="report-alert"><b>${overdue.length} requerimiento(s) vencido(s)</b><br>Requieren revisión prioritaria.</div>` : '',
-      stale.length ? `<div class="report-alert"><b>${stale.length} requerimiento(s) sin actualización por más de 7 días</b></div>` : '',
-      overloaded.length ? `<div class="report-alert"><b>${overloaded.length} ejecutivo(s) con sobrecarga</b><br>${overloaded.map(user => user.n).join(', ')}</div>` : '',
-      (!overdue.length && !stale.length && !overloaded.length) ? '<div class="report-alert report-success"><b>No se detectan alertas críticas.</b></div>' : ''
-    ].join('');
-
-    weeklyReportContent.innerHTML = `
-      <h1>Sistema de Gestión y Trazabilidad para Compras Públicas</h1>
-      <div class="report-meta">
-        Departamento de Abastecimiento · Servicio de Salud Metropolitano Occidente<br>
-        Reporte emitido el ${todayLabel()} · Generado por ${current?.n || 'Sistema'}
-      </div>
-      <div class="report-kpis">
-        <div class="report-kpi"><span>Activos</span><strong>${activeItems.length}</strong></div>
-        <div class="report-kpi"><span>En ejecución</span><strong>${activeItems.filter(item => item.estado === 'En ejecución').length}</strong></div>
-        <div class="report-kpi"><span>Terminados</span><strong>${done.length}</strong></div>
-        <div class="report-kpi"><span>Vencidos</span><strong>${overdue.length}</strong></div>
-        <div class="report-kpi"><span>Alta prioridad</span><strong>${high.length}</strong></div>
-        <div class="report-kpi"><span>Sin actualizar</span><strong>${stale.length}</strong></div>
-        <div class="report-kpi"><span>Sobrecarga</span><strong>${overloaded.length}</strong></div>
-        <div class="report-kpi"><span>Total histórico</span><strong>${req.length}</strong></div>
-      </div>
-      <h2>Alertas de gestión</h2>
-      ${alertsHtml}
-      <h2>Carga por ejecutivo</h2>
-      <table class="report-table">
-        <thead><tr><th>Ejecutivo</th><th>Activos</th><th>Alta prioridad</th><th>Puntaje</th><th>Carga</th></tr></thead>
-        <tbody>${workloadRows}</tbody>
-      </table>
-      <h2>Requerimientos que requieren atención</h2>
-      <table class="report-table">
-        <thead><tr><th>ID</th><th>Requerimiento</th><th>Responsable</th><th>Estado</th><th>Prioridad</th><th>Avance</th></tr></thead>
-        <tbody>${activeItems.filter(item => item.vencido || item.dias > 7 || item.prio === 'Alta').map(item => `<tr>
-          <td>REQ-${String(item.id).padStart(3,'0')}</td><td>${item.t}</td><td>${name(item.exec)}</td><td>${item.estado}</td><td>${item.prio}</td><td>${item.avance}%</td>
-        </tr>`).join('') || '<tr><td colspan="6">Sin requerimientos críticos.</td></tr>'}</tbody>
-      </table>
-      <p style="margin-top:24px;font-size:10px;color:#6f7e91">Desarrollado por Bayron Retamal González · Versión de demostración</p>
-    `;
-    weeklyReportModal.classList.remove('hidden');
+  window.generateWeeklyReport=function(){
+    if(typeof isManager==='function'&&!isManager())return alert('Disponible solo para perfiles de gestión.');
+    const activeItems=req.filter(item=>item.estado!=='Terminado');
+    const rows=executives().map(user=>`<tr><td>${user.n}</td><td>${active(user.u).length}</td><td>${score(user.u)}</td><td>${load(user.u).label}</td></tr>`).join('');
+    const report=window.open('','_blank','width=1000,height=800');
+    if(!report)return alert('Habilite las ventanas emergentes para generar el reporte.');
+    report.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Reporte Ejecutivo</title><style>body{font-family:Arial;padding:28px;color:#132b49}h1,h2{color:#063c70}table{width:100%;border-collapse:collapse}th,td{border:1px solid #dfe6ee;padding:8px;text-align:left}th{background:#edf4f9}.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.kpi{border:1px solid #dfe6ee;border-radius:9px;padding:12px}.kpi b{font-size:23px;display:block}@media print{body{padding:0}}</style></head><body><h1>Sistema de Gestión y Trazabilidad para Compras Públicas</h1><p>Departamento de Abastecimiento · SSMOCC</p><p>Generado por ${current?.n||'Sistema'} · ${new Date().toLocaleString('es-CL')}</p><div class="kpis"><div class="kpi">Activos<b>${activeItems.length}</b></div><div class="kpi">En ejecución<b>${activeItems.filter(x=>x.estado==='En ejecución').length}</b></div><div class="kpi">Vencidos<b>${activeItems.filter(x=>x.vencido).length}</b></div><div class="kpi">Terminados<b>${req.filter(x=>x.estado==='Terminado').length}</b></div></div><h2>Carga por ejecutivo</h2><table><thead><tr><th>Ejecutivo</th><th>Activos</th><th>Puntaje</th><th>Clasificación</th></tr></thead><tbody>${rows}</tbody></table><p style="margin-top:30px;font-size:11px;color:#6f7e91">Diseñado y desarrollado por ${AUTHOR}</p><script>setTimeout(()=>window.print(),400)<\/script></body></html>`);
+    report.document.close();
   };
 
-  window.printWeeklyReport = function(){
-    const content = weeklyReportContent.innerHTML;
-    const printWindow = window.open('', '_blank', 'width=1000,height=800');
-    if (!printWindow) {
-      alert('El navegador bloqueó la ventana de impresión. Habilite las ventanas emergentes para esta aplicación.');
-      return;
-    }
-    printWindow.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Reporte Ejecutivo Semanal</title><style>
-      body{font-family:Arial,sans-serif;color:#132b49;padding:24px}h1,h2{color:#063c70}h2{border-bottom:2px solid #0877c9;padding-bottom:6px}.report-meta{color:#6f7e91;font-size:12px}.report-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:14px 0}.report-kpi{border:1px solid #dfe6ee;border-radius:8px;padding:10px}.report-kpi span{display:block;font-size:11px;color:#6f7e91}.report-kpi strong{font-size:21px}.report-table{width:100%;border-collapse:collapse;font-size:11px}.report-table th,.report-table td{border:1px solid #dfe6ee;padding:6px;text-align:left}.report-table th{background:#edf4f9}.report-alert{border-left:4px solid #ed1c2e;padding:8px;background:#fff4f4;margin-bottom:7px}.report-success{border-left-color:#22a447;background:#f1fbf4}@media print{body{padding:0}}
-    </style></head><body>${content}</body></html>`);
-    printWindow.document.close();
-    printWindow.focus();
-    setTimeout(() => printWindow.print(), 350);
-  };
+  const observer=new MutationObserver(installDeveloperIdentity);
+  observer.observe(document.body,{childList:true,subtree:true});
+  document.addEventListener('DOMContentLoaded',installDeveloperIdentity);
+  installDeveloperIdentity();
 })();
 </script>
 '''
 
-html = html.replace("</body>", reports_patch + "\n</body>")
+# Inserta módulos antes del cierre del documento.
+html = html.replace("</body>", admin_patch + runtime_patch + "\n</body>")
 
-components.html(
-    html,
-    height=1500,
-    scrolling=True,
-)
+components.html(html, height=1700, scrolling=True)
