@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 
 import streamlit as st
 import streamlit.components.v1 as components
@@ -22,12 +23,8 @@ st.markdown(
         padding: 0 !important;
         max-width: 100% !important;
     }
-    .stApp {
-        background: #f4f6f8;
-    }
-    iframe {
-        border: 0 !important;
-    }
+    .stApp {background: #f4f6f8;}
+    iframe {border: 0 !important;}
     </style>
     """,
     unsafe_allow_html=True,
@@ -41,11 +38,24 @@ if not html_path.exists():
 
 html = html_path.read_text(encoding="utf-8")
 
-# Corrige de forma centralizada la denominación institucional visible.
-html = html.replace("SSMOC", "SSMOCC")
+# Corrige únicamente denominaciones incorrectas, sin transformar SSMOCC nuevamente.
+html = html.replace("SSMOCCC", "SSMOCC")
+html = re.sub(r"\bSSMOC\b", "SSMOCC", html)
+
+# Reemplaza cualquier logo incrustado o roto por una imagen institucional estable.
+logo_url = "https://gestordocumentalhsjd.ceropapel.cl/archivos/publico//logos/logo3.jpg"
+html = re.sub(
+    r'(<img[^>]*class=["\'][^"\']*(?:logo-login|brand-logo)[^"\']*["\'][^>]*src=)["\'][^"\']*["\']',
+    lambda match: f'{match.group(1)}"{logo_url}"',
+    html,
+    flags=re.IGNORECASE,
+)
+
+# Ajuste preventivo del texto alternativo.
+html = html.replace('alt="Logo SSMOCCC"', 'alt="Logo SSMOCC"')
 
 components.html(
     html,
-    height=1100,
+    height=1200,
     scrolling=True,
 )
