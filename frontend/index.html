@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>SGTCP · SSMOCC</title>
+  <link rel="stylesheet" href="css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <section id="loginView" class="login-shell">
+    <div class="login-card">
+      <img class="logo" src="https://gestordocumentalhsjd.ceropapel.cl/archivos/publico//logos/logo3.jpg" alt="SSMOCC">
+      <p class="eyebrow">Servicio de Salud Metropolitano Occidente</p>
+      <h1>Sistema de Gestión y Trazabilidad para Compras Públicas</h1>
+      <p class="muted">Departamento de Abastecimiento</p>
+      <form id="loginForm">
+        <label>Usuario<input id="loginUser" required autocomplete="username"></label>
+        <label>Contraseña<input id="loginPassword" type="password" required autocomplete="current-password"></label>
+        <button class="btn primary" type="submit">Ingresar</button>
+      </form>
+      <p id="loginError" class="error"></p>
+      <small>Diseñado y desarrollado por <strong>Bayron Retamal González</strong></small>
+    </div>
+  </section>
+
+  <div id="appView" class="app hidden">
+    <header class="topbar">
+      <div class="brand"><img src="https://gestordocumentalhsjd.ceropapel.cl/archivos/publico//logos/logo3.jpg" alt="SSMOCC"><div><strong>SGTCP</strong><span>Gestión y Trazabilidad para Compras Públicas</span></div></div>
+      <nav>
+        <button data-view="dashboard" class="active">Panel</button>
+        <button data-view="requirements">Requerimientos</button>
+        <button data-view="users" id="usersNav">Administración</button>
+      </nav>
+      <div class="account"><div><b id="accountName"></b><span id="accountRole"></span></div><button id="logoutBtn" class="btn ghost">Cerrar sesión</button></div>
+    </header>
+
+    <main>
+      <section id="dashboardView" class="view">
+        <div class="page-head"><div><p class="eyebrow">Panel ejecutivo</p><h2>Resumen de gestión</h2><p class="muted">Información actualizada desde Google Sheets.</p></div><button id="newReqBtn" class="btn primary">+ Nuevo requerimiento</button></div>
+        <div id="kpis" class="kpi-grid"></div>
+        <div class="dashboard-grid">
+          <article class="panel"><div class="panel-head"><h3>Distribución por estado</h3></div><canvas id="stateChart"></canvas></article>
+          <article class="panel"><div class="panel-head"><h3>Carga por ejecutivo</h3></div><canvas id="workloadChart"></canvas></article>
+        </div>
+        <article class="panel"><div class="panel-head"><h3>Requieren atención</h3><button class="link" data-view="requirements">Ver todos</button></div><div id="attentionList"></div></article>
+      </section>
+
+      <section id="requirementsView" class="view hidden">
+        <div class="page-head"><div><p class="eyebrow">Gestión operacional</p><h2>Requerimientos</h2></div><button class="btn primary" id="newReqBtn2">+ Nuevo requerimiento</button></div>
+        <div class="toolbar"><input id="searchInput" placeholder="Buscar por código, título o responsable"><select id="stateFilter"><option value="">Todos los estados</option><option>Pendiente</option><option>En ejecución</option><option>En espera</option><option>Terminado</option></select></div>
+        <article class="panel table-panel"><table><thead><tr><th>ID</th><th>Requerimiento</th><th>Responsable</th><th>Estado</th><th>Prioridad</th><th>Avance</th><th>Actualizado</th></tr></thead><tbody id="requirementsBody"></tbody></table></article>
+      </section>
+
+      <section id="usersView" class="view hidden">
+        <div class="page-head"><div><p class="eyebrow">Administración</p><h2>Usuarios y perfiles</h2></div><button id="newUserBtn" class="btn primary">+ Agregar usuario</button></div>
+        <article class="panel table-panel"><table><thead><tr><th>Nombre</th><th>Usuario</th><th>Rol</th><th>Email</th><th>Estado</th></tr></thead><tbody id="usersBody"></tbody></table></article>
+      </section>
+    </main>
+    <footer>Servicio de Salud Metropolitano Occidente · Diseñado y desarrollado por <strong>Bayron Retamal González</strong></footer>
+  </div>
+
+  <dialog id="requirementDialog">
+    <form id="requirementForm" method="dialog">
+      <div class="dialog-head"><h3>Nuevo requerimiento</h3><button type="button" class="icon-btn" data-close="requirementDialog">×</button></div>
+      <label>Título<input id="reqTitle" required></label>
+      <label>Descripción<textarea id="reqDescription" rows="4"></textarea></label>
+      <div class="form-grid"><label>Responsable<select id="reqResponsible" required></select></label><label>Prioridad<select id="reqPriority"><option>Alta</option><option selected>Media</option><option>Baja</option></select></label></div>
+      <label>Fecha compromiso<input id="reqDue" type="date"></label>
+      <div class="dialog-actions"><button type="button" class="btn ghost" data-close="requirementDialog">Cancelar</button><button class="btn primary" type="submit">Guardar</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="userDialog">
+    <form id="userForm" method="dialog">
+      <div class="dialog-head"><h3>Agregar usuario</h3><button type="button" class="icon-btn" data-close="userDialog">×</button></div>
+      <label>Nombre completo<input id="userName" required></label>
+      <div class="form-grid"><label>Usuario<input id="userLogin" required></label><label>Rol<select id="userRole"><option>Ejecutivo</option><option>Jefa de Unidad</option><option>Jefe de Departamento</option><option>Administrador</option></select></label></div>
+      <label>Email<input id="userEmail" type="email"></label>
+      <label>Contraseña inicial<input id="userPassword" type="password" minlength="8" required></label>
+      <div class="dialog-actions"><button type="button" class="btn ghost" data-close="userDialog">Cancelar</button><button class="btn primary" type="submit">Crear usuario</button></div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast hidden"></div>
+  <script src="js/config.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
