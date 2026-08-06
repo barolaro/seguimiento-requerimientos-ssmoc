@@ -3,88 +3,103 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Seguimiento de Requerimientos - SSMOC</title>
+<title>Seguimiento de Requerimientos - Abastecimiento SSMOC</title>
 <style>
-body{
-    margin:0;
-    font-family:Arial,sans-serif;
-    background:#f4f6f9;
-}
-.login{
-    min-height:100vh;
-    display:flex;
-    justify-content:center;
-    align-items:center;
-    background:linear-gradient(135deg,#0d4b75,#1e6fa5);
-}
-.card{
-    width:430px;
-    background:white;
-    border-radius:20px;
-    padding:35px;
-    box-shadow:0 20px 60px rgba(0,0,0,.25);
-}
-.logo{
-    display:block;
-    width:180px;
-    margin:0 auto 20px;
-}
-h1{
-    margin:0;
-    text-align:center;
-    color:#143d59;
-}
-h3{
-    margin:8px 0 25px;
-    text-align:center;
-    color:#5c6b7a;
-    font-weight:normal;
-}
-label{
-    display:block;
-    margin:12px 0 6px;
-    font-weight:bold;
-}
-input{
-    width:100%;
-    padding:12px;
-    border:1px solid #d8dee5;
-    border-radius:8px;
-    box-sizing:border-box;
-}
-button{
-    width:100%;
-    margin-top:20px;
-    padding:12px;
-    border:0;
-    border-radius:8px;
-    background:#1e6fa5;
-    color:white;
-    font-size:16px;
-    font-weight:bold;
-    cursor:pointer;
-}
-.credit{
-    margin-top:22px;
-    text-align:center;
-    color:#6b7280;
-    font-size:13px;
-}
+body{margin:0;font-family:Arial,sans-serif;background:#f4f6f8;color:#25364a}
+header{background:#164e73;color:#fff;padding:22px 32px}
+header h1{margin:0;font-size:26px}
+header p{margin:6px 0 0;opacity:.85}
+.container{padding:24px 32px}
+.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:22px}
+.card{background:#fff;border-radius:12px;padding:18px;box-shadow:0 4px 14px rgba(0,0,0,.07)}
+.card span{color:#6f7d8d;font-size:13px}
+.card strong{display:block;font-size:30px;margin-top:8px}
+.actions{display:flex;gap:12px;justify-content:space-between;align-items:center;margin-bottom:18px}
+button{border:0;border-radius:8px;padding:10px 14px;cursor:pointer;font-weight:bold}
+.primary{background:#1f6fa5;color:#fff}
+.secondary{background:#e8eef4;color:#164e73}
+.filters{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:12px;margin-bottom:18px}
+input,select,textarea{width:100%;padding:10px;border:1px solid #d7dee6;border-radius:8px;box-sizing:border-box}
+table{width:100%;border-collapse:collapse;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 14px rgba(0,0,0,.07)}
+th{background:#edf2f6;text-align:left;padding:12px;font-size:13px}
+td{padding:12px;border-top:1px solid #e3e8ed;font-size:13px}
+.badge{display:inline-block;padding:5px 9px;border-radius:20px;font-size:11px;font-weight:bold}
+.pendiente{background:#fff1c9;color:#8b6900}
+.ejecucion{background:#dbeafe;color:#1f4d8f}
+.espera{background:#efe0ff;color:#67229b}
+.terminado{background:#d9f8df;color:#1c6a2d}
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);align-items:center;justify-content:center;padding:20px}
+.modal-box{background:#fff;border-radius:14px;padding:22px;width:min(620px,100%)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.full{grid-column:1/-1}
+.modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:14px}
+@media(max-width:900px){.cards{grid-template-columns:1fr 1fr}.filters{grid-template-columns:1fr 1fr}}
+@media(max-width:600px){.cards,.filters,.grid{grid-template-columns:1fr}.container{padding:18px}.full{grid-column:auto}}
 </style>
 </head>
 <body>
-<div class="login">
-<div class="card">
-<img src="assets/logo_ssmoc.png" class="logo" alt="Logo SSMOC">
+<header>
 <h1>Seguimiento de Requerimientos</h1>
-<h3>Departamento de Abastecimiento<br>Servicio de Salud Metropolitano Occidente</h3>
-<label>Usuario</label>
-<input placeholder="Ingrese su usuario">
-<label>Contraseña</label>
-<input type="password" placeholder="********">
-<button>Ingresar</button>
-<div class="credit">Desarrollado por Bayron Retamal Gonzalez</div>
+<p>Departamento de Abastecimiento · SSMOC</p>
+</header>
+
+<div class="container">
+<div class="cards">
+<div class="card"><span>Total de requerimientos</span><strong>12</strong></div>
+<div class="card"><span>En ejecución</span><strong>5</strong></div>
+<div class="card"><span>Terminados</span><strong>4</strong></div>
+<div class="card"><span>Sin actualizar</span><strong>3</strong></div>
+</div>
+
+<div class="actions">
+<div>
+<h2 style="margin:0">Requerimientos</h2>
+<p style="margin:5px 0;color:#6f7d8d">Vista de jefatura para revisar el estado de cada ejecutivo.</p>
+</div>
+<button class="primary" onclick="abrirModal()">+ Nuevo requerimiento</button>
+</div>
+
+<div class="filters">
+<input placeholder="Buscar por palabra o requerimiento">
+<select><option>Todos los ejecutivos</option><option>Bayron Retamal</option><option>Andrea Muñoz</option><option>Carlos Soto</option></select>
+<select><option>Todos los estados</option><option>Pendiente</option><option>En ejecución</option><option>En espera</option><option>Terminado</option></select>
+<select><option>Todas las prioridades</option><option>Alta</option><option>Media</option><option>Baja</option></select>
+</div>
+
+<table>
+<thead>
+<tr><th>ID</th><th>Requerimiento</th><th>Ejecutivo</th><th>Estado</th><th>Prioridad</th><th>Última actualización</th><th>Acción</th></tr>
+</thead>
+<tbody>
+<tr><td>#001</td><td><b>Revisión de antecedentes de compra</b><br>Se solicitaron correcciones a la unidad requirente.</td><td>Bayron Retamal</td><td><span class="badge ejecucion">En ejecución</span></td><td>Alta</td><td>Hoy</td><td><button class="secondary" onclick="abrirModal()">Editar</button></td></tr>
+<tr><td>#002</td><td><b>Preparación de bases administrativas</b><br>Pendiente recepción de especificaciones técnicas.</td><td>Andrea Muñoz</td><td><span class="badge pendiente">Pendiente</span></td><td>Media</td><td>Hace 3 días</td><td><button class="secondary" onclick="abrirModal()">Editar</button></td></tr>
+<tr><td>#003</td><td><b>Seguimiento de orden de compra</b><br>Proveedor informa despacho durante la semana.</td><td>Carlos Soto</td><td><span class="badge espera">En espera</span></td><td>Alta</td><td>Hace 8 días</td><td><button class="secondary" onclick="abrirModal()">Editar</button></td></tr>
+<tr><td>#004</td><td><b>Carga de antecedentes en Mercado Público</b><br>Proceso validado correctamente.</td><td>Andrea Muñoz</td><td><span class="badge terminado">Terminado</span></td><td>Baja</td><td>Ayer</td><td><button class="secondary" onclick="abrirModal()">Ver</button></td></tr>
+</tbody>
+</table>
+</div>
+
+<div id="modal" class="modal">
+<div class="modal-box">
+<h2>Actualizar requerimiento</h2>
+<div class="grid">
+<div class="full"><label>Requerimiento</label><input value="Revisión de antecedentes de compra"></div>
+<div><label>Ejecutivo</label><select><option>Bayron Retamal</option><option>Andrea Muñoz</option><option>Carlos Soto</option></select></div>
+<div><label>Estado</label><select><option>En ejecución</option><option>Pendiente</option><option>En espera</option><option>Terminado</option></select></div>
+<div><label>Prioridad</label><select><option>Alta</option><option>Media</option><option>Baja</option></select></div>
+<div><label>Fecha compromiso</label><input type="date" value="2026-08-10"></div>
+<div class="full"><label>Última gestión</label><textarea rows="4">Se solicitaron correcciones a la unidad requirente.</textarea></div>
+</div>
+<div class="modal-actions">
+<button class="secondary" onclick="cerrarModal()">Cancelar</button>
+<button class="primary" onclick="cerrarModal()">Guardar</button>
 </div>
 </div>
+</div>
+
+<script>
+function abrirModal(){document.getElementById('modal').style.display='flex'}
+function cerrarModal(){document.getElementById('modal').style.display='none'}
+</script>
 </body>
 </html>
