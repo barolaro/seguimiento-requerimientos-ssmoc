@@ -16,7 +16,10 @@ class SheetsStore:
     HISTORY = "historial"
     AUDIT = "auditoria"
 
-    USER_COLS = ["usuario", "nombre", "email", "rol", "password_hash", "activo"]
+    USER_COLS = [
+        "usuario", "nombre", "email", "rol", "password_hash", "activo",
+        "cambiar_password", "ultimo_acceso", "creado",
+    ]
     REQ_COLS = ["id", "titulo", "descripcion", "responsable", "estado", "prioridad", "avance", "creado", "compromiso", "creado_por", "actualizado"]
     HISTORY_COLS = ["evento_id", "requerimiento_id", "fecha", "tipo", "autor", "detalle", "estado_anterior", "estado_nuevo"]
     AUDIT_COLS = ["evento_id", "fecha", "usuario", "accion", "entidad_id", "detalle"]
@@ -41,13 +44,18 @@ class SheetsStore:
     def _now() -> str:
         return datetime.now(timezone.utc).astimezone().replace(microsecond=0).isoformat()
 
+    @staticmethod
+    def _bool(value: Any) -> bool:
+        return str(value).strip().upper() in {"SI", "TRUE", "1", "VERDADERO"}
+
     def _ensure_sheet(self, name: str, headers: list[str], rows: int = 1000) -> None:
         try:
             ws = self.book.worksheet(name)
         except gspread.WorksheetNotFound:
             ws = self.book.add_worksheet(name, rows=rows, cols=len(headers))
-        first = ws.row_values(1)
-        if first != headers:
+        if ws.col_count < len(headers):
+            ws.add_cols(len(headers) - ws.col_count)
+        if ws.row_values(1) != headers:
             ws.update([headers], "A1")
 
     def _ensure_sheets(self) -> None:
@@ -59,18 +67,41 @@ class SheetsStore:
     def list_users(self) -> list[dict[str, Any]]:
         rows = self.book.worksheet(self.USERS).get_all_records()
         for row in rows:
-            row["activo"] = str(row.get("activo", "")).strip().upper() in {"SI", "TRUE", "1", "VERDADERO"}
+            row["usuario"] = str(row.get("usuario", "")).strip().lower()
+            row["activo"] = self._bool(row.get("activo", ""))
+            row["cambiar_password"] = self._bool(row.get("cambiar_password", ""))
         return rows
 
     def get_user(self, username: str) -> dict[str, Any] | None:
         username = username.strip().lower()
-        return next((u for u in self.list_users() if str(u.get("usuario", "")).lower() == username), None)
+        return next((u for u in self.list_users() if u.get("usuario") == username), None)
 
     def append_user(self, item: dict[str, Any]) -> None:
+        created = item.get("creado") or self._now()
         self.book.worksheet(self.USERS).append_row([
             item.get("usuario", ""), item.get("nombre", ""), item.get("email", ""),
-            item.get("rol", ""), item.get("password_hash", ""), "SI" if item.get("activo", True) else "NO",
+            item.get("rol", ""), item.get("password_hash", ""),
+            "SI" if item.get("activo", True) else "NO",
+            "SI" if item.get("cambiar_password", True) else "NO",
+            item.get("ultimo_acceso", ""), created,
         ], value_input_option="USER_ENTERED")
+
+    def update_user(self, username: str, changes: dict[str, Any]) -> dict[str, Any]:
+        ws = self.book.worksheet(self.USERS)
+        cell = ws.find(username.strip().lower(), in_column=1)
+        if not cell:
+            raise KeyError(f"No existe el usuario {username}")
+        current = self.get_user(username) or {}
+        current.update(changes)
+        values = [
+            current.get("usuario", ""), current.get("nombre", ""), current.get("email", ""),
+            current.get("rol", ""), current.get("password_hash", ""),
+            "SI" if current.get("activo", True) else "NO",
+            "SI" if current.get("cambiar_password", False) else "NO",
+            current.get("ultimo_acceso", ""), current.get("creado", ""),
+        ]
+        ws.update([values], f"A{cell.row}:I{cell.row}", value_input_option="USER_ENTERED")
+        return current
 
     def list_requirements(self) -> list[dict[str, Any]]:
         rows = self.book.worksheet(self.REQUIREMENTS).get_all_records()
