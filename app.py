@@ -44,7 +44,6 @@ css = css_path.read_text(encoding="utf-8")
 javascript = js_path.read_text(encoding="utf-8")
 performance_js = performance_path.read_text(encoding="utf-8")
 
-# Backend SGTCP 3.0: Google Apps Script publicado como Web App (/exec).
 DEFAULT_APPS_SCRIPT_URL = (
     "https://script.google.com/macros/s/"
     "AKfycbzmYGqzfBTgjcyXtoB7rA6j1uvZ7XGSm_WHAuXWZSD8RLIOiQJd0krdQ_xfOSfJClsKiw/exec"
@@ -52,15 +51,15 @@ DEFAULT_APPS_SCRIPT_URL = (
 apps_script_url = str(st.secrets.get("apps_script_url", DEFAULT_APPS_SCRIPT_URL)).strip()
 
 config_script = "<script>window.SGTCP_CONFIG=" + json.dumps(
-    {"appsScriptUrl": apps_script_url, "version": "3.0.1"}, ensure_ascii=False
+    {"appsScriptUrl": apps_script_url, "version": "3.0.3"}, ensure_ascii=False
 ) + ";</script>"
 
-# Streamlit components.html no sirve automáticamente archivos relativos del repositorio.
-# Por eso CSS y JS se incrustan en el HTML final del iframe.
 html = html.replace('<link rel="stylesheet" href="css/style.css">', f"<style>{css}</style>")
 html = html.replace('<script src="js/config.js"></script>', config_script)
 html = html.replace('<script src="js/app.js"></script>', f"<script>{javascript}</script>")
 html = html.replace('<script src="js/performance.js?v=3.0.1"></script>', f"<script>{performance_js}</script>")
 html = html.replace('<script src="js/performance.js"></script>', f"<script>{performance_js}</script>")
+# Marca de versión visible para verificar que Streamlit sirvió el build actual.
+html = html.replace('SGTCP 3.0 · Diseñado y desarrollado', 'SGTCP 3.0.3 · Diseñado y desarrollado')
 
 components.html(html, height=1050, scrolling=True)
