@@ -41,12 +41,16 @@ html = html_path.read_text(encoding="utf-8")
 css = css_path.read_text(encoding="utf-8")
 javascript = js_path.read_text(encoding="utf-8")
 
-# Backend de producción: Google Apps Script publicado como Web App (/exec).
-# Configurar en Streamlit Secrets:
-# apps_script_url = "https://script.google.com/macros/s/XXXXXXXX/exec"
-apps_script_url = str(st.secrets.get("apps_script_url", "")).strip()
+# Backend SGTCP 3.0: Google Apps Script publicado como Web App (/exec).
+# Si existe apps_script_url en Streamlit Secrets, tiene prioridad.
+DEFAULT_APPS_SCRIPT_URL = (
+    "https://script.google.com/macros/s/"
+    "AKfycbzmYGqzfBTgjcyXtoB7rA6j1uvZ7XGSm_WHAuXWZSD8RLIOiQJd0krdQ_xfOSfJClsKiw/exec"
+)
+apps_script_url = str(st.secrets.get("apps_script_url", DEFAULT_APPS_SCRIPT_URL)).strip()
+
 config_script = "<script>window.SGTCP_CONFIG=" + json.dumps(
-    {"appsScriptUrl": apps_script_url}, ensure_ascii=False
+    {"appsScriptUrl": apps_script_url, "version": "3.0.0"}, ensure_ascii=False
 ) + ";</script>"
 
 html = html.replace('<link rel="stylesheet" href="css/style.css">', f"<style>{css}</style>")
