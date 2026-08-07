@@ -11,7 +11,14 @@ async function call(action,payload={}){
   if(!data.ok) throw new Error(data.error||'No fue posible completar la operación.');
   return data;
 }
-function toast(message){const n=$('toast');n.textContent=message;n.classList.remove('hidden');setTimeout(()=>n.classList.add('hidden'),2800)}
+function toast(message,type='info'){
+  const n=$('toast');
+  n.textContent=message;
+  n.className=`toast toast-${type}`;
+  n.classList.remove('hidden');
+  clearTimeout(window.__toastTimer);
+  window.__toastTimer=setTimeout(()=>n.classList.add('hidden'),3600);
+}
 function setView(name){document.querySelectorAll('.view').forEach(x=>x.classList.add('hidden'));$(`${name}View`)?.classList.remove('hidden');document.querySelectorAll('[data-view]').forEach(x=>x.classList.toggle('active',x.dataset.view===name));}
 function badge(value){const key=value==='Terminado'?'green':value==='En ejecución'?'blue':value==='Pendiente'?'orange':'red';return `<span class="badge ${key}">${value||'Sin estado'}</span>`}
 function formatDate(v){if(!v)return '—';const d=new Date(v);return Number.isNaN(d.getTime())?String(v):d.toLocaleString('es-CL',{dateStyle:'short',timeStyle:'short'})}
@@ -27,7 +34,7 @@ async function login(e){
     state.session=data.session;state.user=data.usuario;localStorage.setItem('sgtcp_session',state.session);
     if(data.cambiar_password){
       const nueva=window.prompt('Primer ingreso: cree una nueva contraseña de al menos 10 caracteres.');
-      if(nueva){await call('cambiar_password',{actual:$('loginPassword').value,nueva});toast('Contraseña actualizada correctamente');}
+      if(nueva){await call('cambiar_password',{actual:$('loginPassword').value,nueva});toast('Contraseña actualizada correctamente','success');}
     }
     showApp();await loadAll();
   }catch(err){$('loginError').textContent=err.message;}
@@ -60,9 +67,9 @@ function renderDashboard(){
 }
 function renderCharts(){
   const labels=['Pendiente','En ejecución','En espera','Terminado'];const data=labels.map(s=>state.requirements.filter(r=>r.estado===s).length);
-  state.charts.state?.destroy();state.charts.state=new Chart($('stateChart'),{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:['#ff8a1f','#087dcc','#805ad5','#20a548'],borderWidth:0}]},options:{plugins:{legend:{position:'bottom'}},cutout:'68%'}});
+  state.charts.state?.destroy();state.charts.state=new Chart($('stateChart'),{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:['#ff8a1f','#087dcc','#805ad5','#20a548'],borderWidth:0}]},options:{animation:{duration:180},plugins:{legend:{position:'bottom'}},cutout:'68%'}});
   const executives=state.users.filter(u=>u.rol==='Ejecutivo');const counts=executives.map(u=>state.requirements.filter(r=>r.responsable===u.usuario&&r.estado!=='Terminado').length);
-  state.charts.work?.destroy();state.charts.work=new Chart($('workloadChart'),{type:'bar',data:{labels:executives.map(u=>u.nombre.split(' ').slice(0,2).join(' ')),datasets:[{label:'Activos',data:counts,backgroundColor:'#087dcc',borderRadius:8}]},options:{indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{beginAtZero:true,ticks:{precision:0}},y:{grid:{display:false}}}}});
+  state.charts.work?.destroy();state.charts.work=new Chart($('workloadChart'),{type:'bar',data:{labels:executives.map(u=>u.nombre.split(' ').slice(0,2).join(' ')),datasets:[{label:'Activos',data:counts,backgroundColor:'#087dcc',borderRadius:8}]},options:{animation:{duration:180},indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{beginAtZero:true,ticks:{precision:0}},y:{grid:{display:false}}}}});
 }
 function renderRequirements(){
   const q=$('searchInput')?.value.toLowerCase()||'',f=$('stateFilter')?.value||'';
@@ -71,13 +78,47 @@ function renderRequirements(){
 }
 function renderUsers(){if(!$('usersBody'))return;$('usersBody').innerHTML=state.users.map(u=>`<tr><td><b>${u.nombre}</b></td><td>${u.usuario}</td><td>${u.rol}</td><td>${u.email||'—'}</td><td>${u.activo?'<span class="badge green">Activo</span>':'<span class="badge red">Inactivo</span>'}</td></tr>`).join('')}
 function fillResponsible(){const users=state.users.filter(u=>u.rol==='Ejecutivo'&&u.activo);$('reqResponsible').innerHTML=users.map(u=>`<option value="${u.usuario}">${u.nombre}</option>`).join('')}
+
 async function createRequirement(e){
   e.preventDefault();
-  try{await call('crear_req',{req:{titulo:$('reqTitle').value.trim(),descripcion:$('reqDescription').value.trim(),responsable:$('reqResponsible').value,prioridad:$('reqPriority').value,compromiso:$('reqDue').value}});$('requirementDialog').close();e.target.reset();await loadAll();toast('Requerimiento registrado y trazabilidad iniciada');}catch(err){toast(err.message)}
+  const form=e.target;
+  const button=e.submitter||form.querySelector('button[type="submit"]');
+  const original=button?.textContent||'Guardar';
+  const req={
+    titulo:$('reqTitle').value.trim(),
+    descripcion:$('reqDescription').value.trim(),
+    responsable:$('reqResponsible').value,
+    prioridad:$('reqPriority').value,
+    compromiso:$('reqDue').value
+  };
+  if(!req.responsable){toast('Debe seleccionar un ejecutivo responsable.','error');return;}
+  const responsable=userName(req.responsable);
+  const ok=window.confirm(`¿Está seguro de registrar este requerimiento?\n\nTítulo: ${req.titulo}\nResponsable: ${responsable}\nPrioridad: ${req.prioridad}`);
+  if(!ok)return;
+  try{
+    if(button){button.disabled=true;button.textContent='Guardando…';}
+    const data=await call('crear_req',{req});
+    const now=new Date().toISOString();
+    state.requirements.unshift({id:data.id,titulo:req.titulo,descripcion:req.descripcion,responsable:req.responsable,estado:'Pendiente',prioridad:req.prioridad,avance:0,creado:now,compromiso:req.compromiso,creado_por:state.user?.usuario||'',actualizado:now});
+    $('requirementDialog').close();
+    form.reset();
+    renderDashboard();renderRequirements();
+    toast(`Requerimiento REQ-${String(data.id).padStart(3,'0')} registrado correctamente. Se inició su trazabilidad.`,'success');
+  }catch(err){
+    toast(`No fue posible guardar: ${err.message}`,'error');
+  }finally{
+    if(button){button.disabled=false;button.textContent=original;}
+  }
 }
 async function createUser(e){
   e.preventDefault();
-  try{const data=await call('crear_usuario',{usuario:{nombre:$('userName').value.trim(),usuario:$('userLogin').value.trim(),email:$('userEmail').value.trim(),rol:$('userRole').value,password:$('userPassword').value}});$('userDialog').close();e.target.reset();await loadAll();toast(data.password_temporal?`Usuario creado. Clave temporal: ${data.password_temporal}`:'Usuario creado correctamente');}catch(err){toast(err.message)}
+  const button=e.submitter||e.target.querySelector('button[type="submit"]');const original=button?.textContent||'Guardar';
+  try{
+    if(button){button.disabled=true;button.textContent='Guardando…';}
+    const data=await call('crear_usuario',{usuario:{nombre:$('userName').value.trim(),usuario:$('userLogin').value.trim(),email:$('userEmail').value.trim(),rol:$('userRole').value,password:$('userPassword').value}});
+    $('userDialog').close();e.target.reset();await loadAll();toast(data.password_temporal?`Usuario creado. Clave temporal: ${data.password_temporal}`:'Usuario creado correctamente','success');
+  }catch(err){toast(err.message,'error');}
+  finally{if(button){button.disabled=false;button.textContent=original;}}
 }
 
 document.addEventListener('DOMContentLoaded',()=>{
