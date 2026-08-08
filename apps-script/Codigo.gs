@@ -1,10 +1,13 @@
 /**
- * SGTCP 3.0 · Backend Google Apps Script
+ * SGTCP 3.2 · Backend Google Apps Script optimizado
  * Servicio de Salud Metropolitano Occidente
  */
 
-const APP_VERSION = '3.0.2';
+const APP_VERSION = '3.2.0';
 const SESSION_SECONDS = 21600;
+const SCHEMA_CACHE_KEY = 'sgtcp_schema_ok_320';
+const SCHEMA_CACHE_SECONDS = 3600;
+const USER_CACHE_SECONDS = 60;
 const SH_USERS = 'usuarios';
 const SH_REQ = 'requerimientos';
 const SH_EVENTS = 'eventos';
@@ -54,28 +57,42 @@ function doPost(e) {
 }
 
 function configurarProduccion() {
+  CacheService.getScriptCache().remove(SCHEMA_CACHE_KEY);
   ensureSchema_();
   const props = PropertiesService.getScriptProperties();
   if (!props.getProperty('PASSWORD_PEPPER')) props.setProperty('PASSWORD_PEPPER', Utilities.getUuid() + Utilities.getUuid());
-  const users = readObjects_(sheet_(SH_USERS, USERS_COLS));
+  const users = readObjects_(sheetFast_(SH_USERS));
   if (users.length) {
     Logger.log('SGTCP ya tiene usuarios. No se creó un administrador nuevo.');
     return;
   }
   const temp = tempPassword_();
-  appendObject_(sheet_(SH_USERS, USERS_COLS), USERS_COLS, {
+  appendObject_(sheetFast_(SH_USERS), USERS_COLS, {
     usuario:'bayron.admin', nombre:'Bayron Retamal González', email:'', rol:'Administrador',
     password_hash:hashPassword_(temp), activo:'SI', cambiar_password:'SI', ultimo_acceso:'', creado:now_()
   });
+  invalidateUserCache_('bayron.admin');
   audit_('sistema','crear_administrador','usuario','bayron.admin','Administrador inicial de producción');
   Logger.log('USUARIO INICIAL: bayron.admin');
   Logger.log('CONTRASEÑA TEMPORAL: ' + temp);
 }
 
+/**
+ * D-07: antes se revisaban cabeceras de cuatro hojas en CADA request.
+ * Ahora solo se valida una vez por hora por instancia de Apps Script.
+ */
 function ensureSchema_() {
-  sheet_(SH_USERS, USERS_COLS); sheet_(SH_REQ, REQ_COLS); sheet_(SH_EVENTS, EVENT_COLS); sheet_(SH_AUDIT, AUDIT_COLS);
+  const cache = CacheService.getScriptCache();
+  if (cache.get(SCHEMA_CACHE_KEY) === '1') return;
+
+  ensureSheet_(SH_USERS, USERS_COLS);
+  ensureSheet_(SH_REQ, REQ_COLS);
+  ensureSheet_(SH_EVENTS, EVENT_COLS);
+  ensureSheet_(SH_AUDIT, AUDIT_COLS);
+
   const props = PropertiesService.getScriptProperties();
   if (!props.getProperty('PASSWORD_PEPPER')) props.setProperty('PASSWORD_PEPPER', Utilities.getUuid() + Utilities.getUuid());
+  cache.put(SCHEMA_CACHE_KEY, '1', SCHEMA_CACHE_SECONDS);
 }
 
 function login_(username, password) {
@@ -86,81 +103,130 @@ function login_(username, password) {
   }
   const token = Utilities.getUuid() + Utilities.getUuid();
   CacheService.getScriptCache().put('sess:' + token, JSON.stringify({usuario:user.usuario}), SESSION_SECONDS);
-  updateRowByKey_(sheet_(SH_USERS, USERS_COLS), USERS_COLS, 'usuario', user.usuario, {ultimo_acceso:now_()});
+  updateRowByKey_(sheetFast_(SH_USERS), USERS_COLS, 'usuario', user.usuario, {ultimo_acceso:now_()});
+  invalidateUserCache_(user.usuario);
   audit_(user.usuario,'login','sesion','', 'Inicio de sesión');
   return {ok:true,session:token,cambiar_password:bool_(user.cambiar_password),usuario:publicUser_(user)};
 }
-function logout_(token, ctx) {CacheService.getScriptCache().remove('sess:' + token);audit_(ctx.user.usuario,'logout','sesion','', 'Cierre de sesión');return {ok:true};}
+
+function logout_(token, ctx) {
+  CacheService.getScriptCache().remove('sess:' + token);
+  audit_(ctx.user.usuario,'logout','sesion','', 'Cierre de sesión');
+  return {ok:true};
+}
+
 function requireSession_(token) {
   if (!token) throw new Error('Sesión requerida.');
-  const raw = CacheService.getScriptCache().get('sess:' + token);
+  const cache = CacheService.getScriptCache();
+  const raw = cache.get('sess:' + token);
   if (!raw) throw new Error('La sesión expiró. Ingrese nuevamente.');
-  const payload = JSON.parse(raw), user = getUser_(payload.usuario);
+  const payload = JSON.parse(raw);
+  const user = getUser_(payload.usuario);
   if (!user || !bool_(user.activo)) throw new Error('Usuario inactivo o inexistente.');
-  CacheService.getScriptCache().put('sess:' + token, raw, SESSION_SECONDS);
+  cache.put('sess:' + token, raw, SESSION_SECONDS);
   return {user:user};
 }
+
 function cambiarPassword_(ctx, actual, nueva) {
   if (String(nueva || '').length < 10) throw new Error('La nueva contraseña debe tener al menos 10 caracteres.');
   if (hashPassword_(actual) !== String(ctx.user.password_hash)) throw new Error('La contraseña actual no es correcta.');
-  updateRowByKey_(sheet_(SH_USERS, USERS_COLS), USERS_COLS, 'usuario', ctx.user.usuario, {password_hash:hashPassword_(nueva), cambiar_password:'NO'});
-  audit_(ctx.user.usuario,'cambiar_password','usuario',ctx.user.usuario,'Contraseña modificada'); return {ok:true};
+  updateRowByKey_(sheetFast_(SH_USERS), USERS_COLS, 'usuario', ctx.user.usuario, {password_hash:hashPassword_(nueva), cambiar_password:'NO'});
+  invalidateUserCache_(ctx.user.usuario);
+  audit_(ctx.user.usuario,'cambiar_password','usuario',ctx.user.usuario,'Contraseña modificada');
+  return {ok:true};
 }
 
 function listar_(ctx) {
-  const allReq = readObjects_(sheet_(SH_REQ, REQ_COLS)).map(normalizeReq_);
+  const allReq = readObjects_(sheetFast_(SH_REQ)).map(normalizeReq_);
   const visible = isExecutive_(ctx.user) ? allReq.filter(r => String(r.responsable) === String(ctx.user.usuario)) : allReq;
-  const users = isExecutive_(ctx.user) ? [publicUser_(ctx.user)] : readObjects_(sheet_(SH_USERS, USERS_COLS)).map(publicUser_);
+  const users = isExecutive_(ctx.user) ? [publicUser_(ctx.user)] : readObjects_(sheetFast_(SH_USERS)).map(publicUser_);
   return {ok:true, data:{usuario:publicUser_(ctx.user), usuarios:users, requerimientos:visible}};
 }
+
 function detalle_(ctx, id) {
-  const req = getReq_(id); authorizeReq_(ctx.user, req);
-  const events = readObjects_(sheet_(SH_EVENTS, EVENT_COLS)).filter(e => Number(e.requerimiento_id) === Number(id)).sort((a,b) => String(a.fecha).localeCompare(String(b.fecha)));
+  const req = getReq_(id);
+  authorizeReq_(ctx.user, req);
+  const events = readObjects_(sheetFast_(SH_EVENTS))
+    .filter(e => Number(e.requerimiento_id) === Number(id))
+    .map(normalizeEvent_)
+    .sort((a,b) => String(a.fecha).localeCompare(String(b.fecha)));
   return {ok:true, data:{requerimiento:normalizeReq_(req), eventos:events}};
 }
-function obtenerAuditoria_(ctx, limit) {requireAdmin_(ctx.user);const rows = readObjects_(sheet_(SH_AUDIT, AUDIT_COLS));return {ok:true, data:rows.slice(-Math.min(Math.max(limit,1),1000)).reverse()};}
+
+function obtenerAuditoria_(ctx, limit) {
+  requireAdmin_(ctx.user);
+  const rows = readObjects_(sheetFast_(SH_AUDIT)).map(normalizeAudit_);
+  return {ok:true, data:rows.slice(-Math.min(Math.max(limit,1),1000)).reverse()};
+}
 
 function crearReq_(ctx, req) {
   requireManager_(ctx.user);
   const responsible = getUser_(req.responsable);
   if (!responsible || !bool_(responsible.activo) || String(responsible.rol) !== 'Ejecutivo') throw new Error('Responsable inválido.');
   if (!String(req.titulo || '').trim()) throw new Error('El título es obligatorio.');
-  const lock = LockService.getScriptLock(); lock.waitLock(10000);
+
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
   try {
-    const rows = readObjects_(sheet_(SH_REQ, REQ_COLS)), id = rows.reduce((m,r) => Math.max(m, Number(r.id)||0), 0) + 1, now = now_();
-    const item = {id:id,titulo:String(req.titulo).trim(),descripcion:String(req.descripcion || '').trim(),responsable:responsible.usuario,estado:'Pendiente',prioridad:String(req.prioridad || 'Media'),avance:0,creado:now,compromiso:String(req.compromiso || ''),creado_por:ctx.user.usuario,actualizado:now};
-    appendObject_(sheet_(SH_REQ, REQ_COLS), REQ_COLS, item);
+    const sh = sheetFast_(SH_REQ);
+    const rows = readObjects_(sh);
+    const id = rows.reduce((m,r) => Math.max(m, Number(r.id)||0), 0) + 1;
+    const now = now_();
+    const item = {
+      id:id, titulo:String(req.titulo).trim(), descripcion:String(req.descripcion || '').trim(),
+      responsable:responsible.usuario, estado:'Pendiente', prioridad:String(req.prioridad || 'Media'), avance:0,
+      creado:now, compromiso:normalizeDateOnly_(req.compromiso), creado_por:ctx.user.usuario, actualizado:now
+    };
+    appendObject_(sh, REQ_COLS, item);
     event_(id,'asignacion',ctx.user.usuario,'Requerimiento creado y asignado.','','Pendiente','',responsible.usuario,'',0);
-    audit_(ctx.user.usuario,'crear_requerimiento','requerimiento',String(id),item.titulo); return {ok:true, id:id};
-  } finally {lock.releaseLock();}
+    audit_(ctx.user.usuario,'crear_requerimiento','requerimiento',String(id),item.titulo);
+    return {ok:true, id:id, requerimiento:normalizeReq_(Object.assign({}, item))};
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 function actualizarReq_(ctx, id, changes, detail) {
-  const req = getReq_(id); authorizeReq_(ctx.user, req);
+  const req = getReq_(id);
+  authorizeReq_(ctx.user, req);
   if (String(req.estado) === 'Terminado') throw new Error('El requerimiento está terminado y se encuentra bloqueado para nuevas modificaciones.');
+
   const allowed = isExecutive_(ctx.user) ? ['estado','avance'] : ['estado','prioridad','avance','compromiso','titulo','descripcion'];
-  const clean = {}; allowed.forEach(k => { if (changes[k] !== undefined) clean[k] = changes[k]; });
+  const clean = {};
+  allowed.forEach(k => { if (changes[k] !== undefined) clean[k] = changes[k]; });
   if (clean.avance !== undefined) clean.avance = Math.max(0, Math.min(100, Number(clean.avance)||0));
+  if (clean.compromiso !== undefined) clean.compromiso = normalizeDateOnly_(clean.compromiso);
   if (String(clean.estado) === 'Terminado') clean.avance = 100;
   clean.actualizado = now_();
-  const oldState = req.estado, oldAdvance = Number(req.avance)||0;
-  updateRowByKey_(sheet_(SH_REQ, REQ_COLS), REQ_COLS, 'id', Number(id), clean);
-  const newState = clean.estado !== undefined ? clean.estado : req.estado, newAdvance = clean.avance !== undefined ? clean.avance : oldAdvance;
+
+  const oldState = req.estado;
+  const oldAdvance = Number(req.avance)||0;
+  updateRowByKey_(sheetFast_(SH_REQ), REQ_COLS, 'id', Number(id), clean);
+
+  const newState = clean.estado !== undefined ? clean.estado : req.estado;
+  const newAdvance = clean.avance !== undefined ? clean.avance : oldAdvance;
   const type = oldState !== newState ? 'estado' : (oldAdvance !== newAdvance ? 'avance' : 'actualizacion');
   event_(id,type,ctx.user.usuario,String(detail || 'Actualización de requerimiento'),oldState,newState,req.responsable,req.responsable,oldAdvance,newAdvance);
-  audit_(ctx.user.usuario,'actualizar_requerimiento','requerimiento',String(id),String(detail || type)); return {ok:true};
+  audit_(ctx.user.usuario,'actualizar_requerimiento','requerimiento',String(id),String(detail || type));
+
+  const updated = Object.assign({}, req, clean);
+  return {ok:true, requerimiento:normalizeReq_(updated)};
 }
 
 function reasignarReq_(ctx, id, newResponsible, reason) {
-  requireManager_(ctx.user); const req = getReq_(id);
+  requireManager_(ctx.user);
+  const req = getReq_(id);
   if (String(req.estado) === 'Terminado') throw new Error('No se puede reasignar un requerimiento terminado.');
   const target = getUser_(newResponsible);
   if (!target || !bool_(target.activo) || String(target.rol) !== 'Ejecutivo') throw new Error('Ejecutivo destino inválido.');
   const previous = req.responsable;
   if (String(previous) === String(target.usuario)) throw new Error('El requerimiento ya está asignado a ese ejecutivo.');
-  updateRowByKey_(sheet_(SH_REQ, REQ_COLS), REQ_COLS, 'id', Number(id), {responsable:target.usuario, actualizado:now_()});
+
+  const now = now_();
+  updateRowByKey_(sheetFast_(SH_REQ), REQ_COLS, 'id', Number(id), {responsable:target.usuario, actualizado:now});
   event_(id,'reasignacion',ctx.user.usuario,String(reason || 'Reasignación por jefatura'),req.estado,req.estado,previous,target.usuario,req.avance,req.avance);
-  audit_(ctx.user.usuario,'reasignar_requerimiento','requerimiento',String(id),previous + ' → ' + target.usuario); return {ok:true};
+  audit_(ctx.user.usuario,'reasignar_requerimiento','requerimiento',String(id),previous + ' → ' + target.usuario);
+  return {ok:true, requerimiento:normalizeReq_(Object.assign({}, req, {responsable:target.usuario, actualizado:now}))};
 }
 
 function eliminarReq_(ctx, id, reason) {
@@ -170,32 +236,202 @@ function eliminarReq_(ctx, id, reason) {
   const req = getReq_(id);
   const snapshot = {id:req.id,titulo:req.titulo,descripcion:req.descripcion,responsable:req.responsable,estado:req.estado,prioridad:req.prioridad,avance:req.avance,creado:req.creado,compromiso:req.compromiso,creado_por:req.creado_por,actualizado:req.actualizado};
   audit_(ctx.user.usuario,'eliminar_requerimiento','requerimiento',String(id),JSON.stringify({motivo:motivo, snapshot:snapshot}));
-  deleteRowByKey_(sheet_(SH_REQ, REQ_COLS), REQ_COLS, 'id', Number(id));
+  deleteRowByKey_(sheetFast_(SH_REQ), REQ_COLS, 'id', Number(id));
   return {ok:true};
 }
 
 function crearUsuario_(ctx, u) {
-  requireAdmin_(ctx.user); const username = String(u.usuario || '').toLowerCase().trim();
+  requireAdmin_(ctx.user);
+  const username = String(u.usuario || '').toLowerCase().trim();
   if (!username || getUser_(username)) throw new Error('El usuario ya existe o es inválido.');
   if (!['Administrador','Jefa de Unidad','Jefe de Departamento','Ejecutivo'].includes(String(u.rol))) throw new Error('Rol inválido.');
-  const temp = String(u.password || tempPassword_()); if (temp.length < 10) throw new Error('La contraseña inicial debe tener al menos 10 caracteres.');
-  appendObject_(sheet_(SH_USERS, USERS_COLS), USERS_COLS, {usuario:username,nombre:String(u.nombre || '').trim(),email:String(u.email || '').trim(),rol:String(u.rol),password_hash:hashPassword_(temp),activo:'SI',cambiar_password:'SI',ultimo_acceso:'',creado:now_()});
-  audit_(ctx.user.usuario,'crear_usuario','usuario',username,String(u.rol)); return {ok:true, usuario:username, password_temporal:u.password ? undefined : temp};
-}
-function actualizarUsuario_(ctx, username, changes) {requireAdmin_(ctx.user);const user = getUser_(username);if (!user) throw new Error('Usuario no encontrado.');const clean = {};['nombre','email','rol','activo'].forEach(k => { if (changes[k] !== undefined) clean[k] = changes[k]; });if (clean.activo !== undefined) clean.activo = bool_(clean.activo) ? 'SI' : 'NO';updateRowByKey_(sheet_(SH_USERS, USERS_COLS), USERS_COLS, 'usuario', user.usuario, clean);audit_(ctx.user.usuario,'actualizar_usuario','usuario',user.usuario,JSON.stringify(clean));return {ok:true};}
-function resetPassword_(ctx, username) {requireAdmin_(ctx.user);const user = getUser_(username);if (!user) throw new Error('Usuario no encontrado.');const temp = tempPassword_();updateRowByKey_(sheet_(SH_USERS, USERS_COLS), USERS_COLS, 'usuario', user.usuario, {password_hash:hashPassword_(temp), cambiar_password:'SI'});audit_(ctx.user.usuario,'reset_password','usuario',user.usuario,'Contraseña temporal generada');return {ok:true, password_temporal:temp};}
+  const temp = String(u.password || tempPassword_());
+  if (temp.length < 10) throw new Error('La contraseña inicial debe tener al menos 10 caracteres.');
 
-function parseBody_(e) {if (e && e.postData && e.postData.contents) return JSON.parse(e.postData.contents);return (e && e.parameter) || {};}
+  appendObject_(sheetFast_(SH_USERS), USERS_COLS, {
+    usuario:username, nombre:String(u.nombre || '').trim(), email:String(u.email || '').trim(), rol:String(u.rol),
+    password_hash:hashPassword_(temp), activo:'SI', cambiar_password:'SI', ultimo_acceso:'', creado:now_()
+  });
+  invalidateUserCache_(username);
+  audit_(ctx.user.usuario,'crear_usuario','usuario',username,String(u.rol));
+  return {ok:true, usuario:username, password_temporal:u.password ? undefined : temp};
+}
+
+function actualizarUsuario_(ctx, username, changes) {
+  requireAdmin_(ctx.user);
+  const user = getUser_(username);
+  if (!user) throw new Error('Usuario no encontrado.');
+  const clean = {};
+  ['nombre','email','rol','activo'].forEach(k => { if (changes[k] !== undefined) clean[k] = changes[k]; });
+  if (clean.activo !== undefined) clean.activo = bool_(clean.activo) ? 'SI' : 'NO';
+  updateRowByKey_(sheetFast_(SH_USERS), USERS_COLS, 'usuario', user.usuario, clean);
+  invalidateUserCache_(user.usuario);
+  audit_(ctx.user.usuario,'actualizar_usuario','usuario',user.usuario,JSON.stringify(clean));
+  return {ok:true};
+}
+
+function resetPassword_(ctx, username) {
+  requireAdmin_(ctx.user);
+  const user = getUser_(username);
+  if (!user) throw new Error('Usuario no encontrado.');
+  const temp = tempPassword_();
+  updateRowByKey_(sheetFast_(SH_USERS), USERS_COLS, 'usuario', user.usuario, {password_hash:hashPassword_(temp), cambiar_password:'SI'});
+  invalidateUserCache_(user.usuario);
+  audit_(ctx.user.usuario,'reset_password','usuario',user.usuario,'Contraseña temporal generada');
+  return {ok:true, password_temporal:temp};
+}
+
+function parseBody_(e) {
+  if (e && e.postData && e.postData.contents) return JSON.parse(e.postData.contents);
+  return (e && e.parameter) || {};
+}
+
 function ss_(){ return SpreadsheetApp.getActiveSpreadsheet(); }
-function sheet_(name, cols) {let sh = ss_().getSheetByName(name);if (!sh) sh = ss_().insertSheet(name);if (sh.getLastRow() === 0) sh.appendRow(cols);else {const head = sh.getRange(1,1,1,Math.max(sh.getLastColumn(),cols.length)).getValues()[0].slice(0,cols.length);if (head.join('|') !== cols.join('|')) sh.getRange(1,1,1,cols.length).setValues([cols]);}return sh;}
-function readObjects_(sh) {const values = sh.getDataRange().getValues(); if (values.length < 2) return [];const head = values[0];return values.slice(1).filter(r => r.some(v => v !== '')).map(r => { const o={}; head.forEach((h,i)=>o[h]=r[i]); return o; });}
-function appendObject_(sh, cols, obj){ sh.appendRow(cols.map(c => obj[c] !== undefined ? obj[c] : '')); }
-function updateRowByKey_(sh, cols, key, value, changes) {const values = sh.getDataRange().getValues(), keyIdx = cols.indexOf(key);for (let i=1;i<values.length;i++) {if (String(values[i][keyIdx]) === String(value)) {Object.keys(changes).forEach(k => { const idx=cols.indexOf(k); if(idx>=0) values[i][idx]=changes[k]; });sh.getRange(i+1,1,1,cols.length).setValues([values[i].slice(0,cols.length)]); return;}}throw new Error('Registro no encontrado: ' + value);}
-function deleteRowByKey_(sh, cols, key, value) {const values = sh.getDataRange().getValues(), keyIdx = cols.indexOf(key);for (let i=1;i<values.length;i++) {if (String(values[i][keyIdx]) === String(value)) {sh.deleteRow(i+1); return;}}throw new Error('Registro no encontrado: ' + value);}
-function getUser_(username){ const u=String(username||'').toLowerCase().trim(); return readObjects_(sheet_(SH_USERS,USERS_COLS)).find(x=>String(x.usuario).toLowerCase()===u) || null; }
-function getReq_(id){ const r=readObjects_(sheet_(SH_REQ,REQ_COLS)).find(x=>Number(x.id)===Number(id)); if(!r) throw new Error('Requerimiento no encontrado.'); return normalizeReq_(r); }
-function normalizeReq_(r){ r.id=Number(r.id)||0; r.avance=Number(r.avance)||0; return r; }
-function publicUser_(u){ return {usuario:u.usuario,nombre:u.nombre,email:u.email,rol:u.rol,activo:bool_(u.activo),cambiar_password:bool_(u.cambiar_password),ultimo_acceso:u.ultimo_acceso}; }
+
+/** Acceso rápido: no verifica cabeceras en cada llamada. */
+function sheetFast_(name) {
+  const sh = ss_().getSheetByName(name);
+  if (!sh) throw new Error('Falta la hoja requerida: ' + name + '. Ejecute configurarProduccion().');
+  return sh;
+}
+
+/** Solo se usa durante validación de esquema. */
+function ensureSheet_(name, cols) {
+  let sh = ss_().getSheetByName(name);
+  if (!sh) sh = ss_().insertSheet(name);
+  if (sh.getLastRow() === 0) {
+    sh.getRange(1,1,1,cols.length).setValues([cols]);
+  } else {
+    const width = Math.max(sh.getLastColumn(), cols.length);
+    const head = sh.getRange(1,1,1,width).getValues()[0].slice(0,cols.length);
+    if (head.join('|') !== cols.join('|')) sh.getRange(1,1,1,cols.length).setValues([cols]);
+  }
+  return sh;
+}
+
+function readObjects_(sh) {
+  const values = sh.getDataRange().getValues();
+  if (values.length < 2) return [];
+  const head = values[0];
+  return values.slice(1).filter(r => r.some(v => v !== '')).map(r => {
+    const o={};
+    head.forEach((h,i)=>o[h]=r[i]);
+    return o;
+  });
+}
+
+function appendObject_(sh, cols, obj) {
+  sh.appendRow(cols.map(c => obj[c] !== undefined ? obj[c] : ''));
+}
+
+/**
+ * Busca SOLO en la columna clave y lee la fila completa únicamente al encontrarla.
+ * Evita getDataRange() completo para getUser_, getReq_, update y delete.
+ */
+function findRowByKey_(sh, cols, key, value) {
+  const keyIdx = cols.indexOf(key);
+  if (keyIdx < 0) throw new Error('Columna clave inexistente: ' + key);
+  const lastRow = sh.getLastRow();
+  if (lastRow < 2) return null;
+  const keys = sh.getRange(2, keyIdx + 1, lastRow - 1, 1).getValues();
+  for (let i=0; i<keys.length; i++) {
+    if (String(keys[i][0]).toLowerCase() === String(value).toLowerCase()) {
+      const rowNumber = i + 2;
+      const values = sh.getRange(rowNumber,1,1,cols.length).getValues()[0];
+      const obj={};
+      cols.forEach((c,j)=>obj[c]=values[j]);
+      return {rowNumber:rowNumber, values:values, object:obj};
+    }
+  }
+  return null;
+}
+
+function updateRowByKey_(sh, cols, key, value, changes) {
+  const found = findRowByKey_(sh, cols, key, value);
+  if (!found) throw new Error('Registro no encontrado: ' + value);
+  const row = found.values.slice();
+  Object.keys(changes).forEach(k => {
+    const idx = cols.indexOf(k);
+    if (idx >= 0) row[idx] = changes[k];
+  });
+  sh.getRange(found.rowNumber,1,1,cols.length).setValues([row]);
+}
+
+function deleteRowByKey_(sh, cols, key, value) {
+  const found = findRowByKey_(sh, cols, key, value);
+  if (!found) throw new Error('Registro no encontrado: ' + value);
+  sh.deleteRow(found.rowNumber);
+}
+
+function getUser_(username) {
+  const u = String(username||'').toLowerCase().trim();
+  if (!u) return null;
+  const cache = CacheService.getScriptCache();
+  const ck = 'user:' + u;
+  const cached = cache.get(ck);
+  if (cached) {
+    try { return JSON.parse(cached); } catch (_) {}
+  }
+  const found = findRowByKey_(sheetFast_(SH_USERS), USERS_COLS, 'usuario', u);
+  if (!found) return null;
+  const user = found.object;
+  try { cache.put(ck, JSON.stringify(user), USER_CACHE_SECONDS); } catch (_) {}
+  return user;
+}
+
+function invalidateUserCache_(username) {
+  CacheService.getScriptCache().remove('user:' + String(username||'').toLowerCase().trim());
+}
+
+function getReq_(id) {
+  const found = findRowByKey_(sheetFast_(SH_REQ), REQ_COLS, 'id', Number(id));
+  if (!found) throw new Error('Requerimiento no encontrado.');
+  return normalizeReq_(found.object);
+}
+
+/** D-04: normalización consistente de fechas provenientes de Sheets. */
+function normalizeDateOnly_(v) {
+  if (!v) return '';
+  if (v instanceof Date) return Utilities.formatDate(v, Session.getScriptTimeZone() || 'America/Santiago', 'yyyy-MM-dd');
+  const s = String(v).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  const d = new Date(v);
+  return isNaN(d.getTime()) ? s : Utilities.formatDate(d, Session.getScriptTimeZone() || 'America/Santiago', 'yyyy-MM-dd');
+}
+
+function normalizeDateTime_(v) {
+  if (!v) return '';
+  if (v instanceof Date) return Utilities.formatDate(v, Session.getScriptTimeZone() || 'America/Santiago', "yyyy-MM-dd'T'HH:mm:ssXXX");
+  return String(v);
+}
+
+function normalizeReq_(r) {
+  r.id = Number(r.id)||0;
+  r.avance = Number(r.avance)||0;
+  r.compromiso = normalizeDateOnly_(r.compromiso);
+  r.creado = normalizeDateTime_(r.creado);
+  r.actualizado = normalizeDateTime_(r.actualizado);
+  return r;
+}
+
+function normalizeEvent_(e) {
+  e.fecha = normalizeDateTime_(e.fecha);
+  return e;
+}
+
+function normalizeAudit_(a) {
+  a.fecha = normalizeDateTime_(a.fecha);
+  return a;
+}
+
+function publicUser_(u) {
+  return {
+    usuario:u.usuario, nombre:u.nombre, email:u.email, rol:u.rol,
+    activo:bool_(u.activo), cambiar_password:bool_(u.cambiar_password),
+    ultimo_acceso:normalizeDateTime_(u.ultimo_acceso)
+  };
+}
+
 function bool_(v){ return !(v===false || v===0 || String(v).toUpperCase()==='NO' || String(v).toUpperCase()==='FALSE' || v===''); }
 function isExecutive_(u){ return String(u.rol)==='Ejecutivo'; }
 function isManager_(u){ return ['Administrador','Jefa de Unidad','Jefe de Departamento'].includes(String(u.rol)); }
@@ -205,6 +441,25 @@ function authorizeReq_(u,r){ if(isExecutive_(u) && String(r.responsable)!==Strin
 function now_(){ return Utilities.formatDate(new Date(), Session.getScriptTimeZone() || 'America/Santiago', "yyyy-MM-dd'T'HH:mm:ssXXX"); }
 function hashPassword_(p){ const pepper=PropertiesService.getScriptProperties().getProperty('PASSWORD_PEPPER') || ''; const bytes=Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256,String(p||'')+'|'+pepper); return bytes.map(b=>('0'+(b&255).toString(16)).slice(-2)).join(''); }
 function tempPassword_(){ return 'Sg!' + Utilities.getUuid().replace(/-/g,'').slice(0,12) + '#26'; }
-function event_(reqId,type,author,detail,oldState,newState,oldResp,newResp,oldAdvance,newAdvance){appendObject_(sheet_(SH_EVENTS,EVENT_COLS),EVENT_COLS,{evento_id:'EV-'+new Date().getTime()+'-'+Math.floor(Math.random()*1000),requerimiento_id:Number(reqId),fecha:now_(),tipo:type,autor:author,detalle:detail,estado_anterior:oldState||'',estado_nuevo:newState||'',responsable_anterior:oldResp||'',responsable_nuevo:newResp||'',avance_anterior:oldAdvance===''?'':Number(oldAdvance||0),avance_nuevo:newAdvance===''?'':Number(newAdvance||0)});}
-function audit_(user,action,entity,entityId,detail){ appendObject_(sheet_(SH_AUDIT,AUDIT_COLS),AUDIT_COLS,{evento_id:'AU-'+new Date().getTime()+'-'+Math.floor(Math.random()*1000),fecha:now_(),usuario:user||'',accion:action,entidad:entity,entidad_id:entityId||'',detalle:detail||''}); }
-function json_(obj){ return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON); }
+
+function event_(reqId,type,author,detail,oldState,newState,oldResp,newResp,oldAdvance,newAdvance) {
+  appendObject_(sheetFast_(SH_EVENTS), EVENT_COLS, {
+    evento_id:'EV-'+new Date().getTime()+'-'+Math.floor(Math.random()*1000),
+    requerimiento_id:Number(reqId), fecha:now_(), tipo:type, autor:author, detalle:detail,
+    estado_anterior:oldState||'', estado_nuevo:newState||'',
+    responsable_anterior:oldResp||'', responsable_nuevo:newResp||'',
+    avance_anterior:oldAdvance===''?'':Number(oldAdvance||0), avance_nuevo:newAdvance===''?'':Number(newAdvance||0)
+  });
+}
+
+function audit_(user,action,entity,entityId,detail) {
+  appendObject_(sheetFast_(SH_AUDIT), AUDIT_COLS, {
+    evento_id:'AU-'+new Date().getTime()+'-'+Math.floor(Math.random()*1000),
+    fecha:now_(), usuario:user||'', accion:action, entidad:entity,
+    entidad_id:entityId||'', detalle:detail||''
+  });
+}
+
+function json_(obj) {
+  return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
+}
