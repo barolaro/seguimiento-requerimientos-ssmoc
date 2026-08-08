@@ -30,10 +30,11 @@ base_dir = Path(__file__).resolve().parent
 frontend_dir = base_dir / "frontend"
 html_path = frontend_dir / "index.html"
 css_path = frontend_dir / "css" / "style.css"
+mobile_css_path = frontend_dir / "css" / "mobile.css"
 js_path = frontend_dir / "js" / "app.js"
 performance_path = frontend_dir / "js" / "performance.js"
 
-required = (html_path, css_path, js_path, performance_path)
+required = (html_path, css_path, mobile_css_path, js_path, performance_path)
 missing = [str(p.relative_to(base_dir)) for p in required if not p.exists()]
 if missing:
     st.error("La interfaz está incompleta. Faltan: " + ", ".join(missing))
@@ -41,6 +42,7 @@ if missing:
 
 html = html_path.read_text(encoding="utf-8")
 css = css_path.read_text(encoding="utf-8")
+mobile_css = mobile_css_path.read_text(encoding="utf-8")
 javascript = js_path.read_text(encoding="utf-8")
 performance_js = performance_path.read_text(encoding="utf-8")
 
@@ -51,15 +53,15 @@ DEFAULT_APPS_SCRIPT_URL = (
 apps_script_url = str(st.secrets.get("apps_script_url", DEFAULT_APPS_SCRIPT_URL)).strip()
 
 config_script = "<script>window.SGTCP_CONFIG=" + json.dumps(
-    {"appsScriptUrl": apps_script_url, "version": "3.0.3"}, ensure_ascii=False
+    {"appsScriptUrl": apps_script_url, "version": "3.0.4"}, ensure_ascii=False
 ) + ";</script>"
 
-html = html.replace('<link rel="stylesheet" href="css/style.css">', f"<style>{css}</style>")
+html = html.replace('<link rel="stylesheet" href="css/style.css">', f"<style>{css}\n{mobile_css}</style>")
 html = html.replace('<script src="js/config.js"></script>', config_script)
 html = html.replace('<script src="js/app.js"></script>', f"<script>{javascript}</script>")
 html = html.replace('<script src="js/performance.js?v=3.0.1"></script>', f"<script>{performance_js}</script>")
 html = html.replace('<script src="js/performance.js"></script>', f"<script>{performance_js}</script>")
-# Marca de versión visible para verificar que Streamlit sirvió el build actual.
-html = html.replace('SGTCP 3.0 · Diseñado y desarrollado', 'SGTCP 3.0.3 · Diseñado y desarrollado')
+html = html.replace('SGTCP 3.0 · Diseñado y desarrollado', 'SGTCP 3.0.4 · Diseñado y desarrollado')
+html = html.replace('SGTCP 3.0.3 · Diseñado y desarrollado', 'SGTCP 3.0.4 · Diseñado y desarrollado')
 
 components.html(html, height=1050, scrolling=True)
