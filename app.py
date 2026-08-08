@@ -53,15 +53,25 @@ DEFAULT_APPS_SCRIPT_URL = (
 apps_script_url = str(st.secrets.get("apps_script_url", DEFAULT_APPS_SCRIPT_URL)).strip()
 
 config_script = "<script>window.SGTCP_CONFIG=" + json.dumps(
-    {"appsScriptUrl": apps_script_url, "version": "3.0.4"}, ensure_ascii=False
+    {"appsScriptUrl": apps_script_url, "version": "3.0.5"}, ensure_ascii=False
 ) + ";</script>"
 
 html = html.replace('<link rel="stylesheet" href="css/style.css">', f"<style>{css}\n{mobile_css}</style>")
 html = html.replace('<script src="js/config.js"></script>', config_script)
 html = html.replace('<script src="js/app.js"></script>', f"<script>{javascript}</script>")
-html = html.replace('<script src="js/performance.js?v=3.0.1"></script>', f"<script>{performance_js}</script>")
-html = html.replace('<script src="js/performance.js"></script>', f"<script>{performance_js}</script>")
-html = html.replace('SGTCP 3.0 · Diseñado y desarrollado', 'SGTCP 3.0.4 · Diseñado y desarrollado')
-html = html.replace('SGTCP 3.0.3 · Diseñado y desarrollado', 'SGTCP 3.0.4 · Diseñado y desarrollado')
+for tag in (
+    '<script src="js/performance.js?v=3.0.1"></script>',
+    '<script src="js/performance.js?v=3.0.2"></script>',
+    '<script src="js/performance.js"></script>',
+):
+    html = html.replace(tag, f"<script>{performance_js}</script>")
+
+html = html.replace(
+    'Diseñado y desarrollado por <strong>Bayron Retamal González</strong></small>',
+    'SGTCP 3.0.5 · Móvil listo<br>Diseñado y desarrollado por <strong>Bayron Retamal González</strong></small>'
+)
+html = html.replace('SGTCP 3.0 · Diseñado y desarrollado', 'SGTCP 3.0.5 · Diseñado y desarrollado')
+html = html.replace('SGTCP 3.0.3 · Diseñado y desarrollado', 'SGTCP 3.0.5 · Diseñado y desarrollado')
+html = html.replace('SGTCP 3.0.4 · Diseñado y desarrollado', 'SGTCP 3.0.5 · Diseñado y desarrollado')
 
 components.html(html, height=1050, scrolling=True)
