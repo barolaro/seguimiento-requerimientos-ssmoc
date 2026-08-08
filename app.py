@@ -19,12 +19,9 @@ st.markdown(
     [data-testid="stHeader"], [data-testid="stSidebar"], [data-testid="stToolbar"] {display:none!important;}
     #MainMenu, footer {visibility:hidden!important;}
     html,body,[data-testid="stAppViewContainer"],[data-testid="stMain"]{
-        margin:0!important;
-        padding:0!important;
-        overflow-x:hidden!important;
-        overflow-y:auto!important;
-        -webkit-overflow-scrolling:touch!important;
+        margin:0!important;padding:0!important;overflow-x:hidden!important;
     }
+    [data-testid="stAppViewContainer"]{overflow-y:auto!important;-webkit-overflow-scrolling:touch!important;}
     .block-container{padding:0!important;margin:0!important;max-width:100%!important;}
     iframe{display:block;width:100%!important;border:0!important;}
     </style>
@@ -59,7 +56,7 @@ DEFAULT_APPS_SCRIPT_URL = (
 apps_script_url = str(st.secrets.get("apps_script_url", DEFAULT_APPS_SCRIPT_URL)).strip()
 
 config_script = "<script>window.SGTCP_CONFIG=" + json.dumps(
-    {"appsScriptUrl": apps_script_url, "version": "3.0.6"}, ensure_ascii=False
+    {"appsScriptUrl": apps_script_url, "version": "3.0.7"}, ensure_ascii=False
 ) + ";</script>"
 
 html = html.replace('<link rel="stylesheet" href="css/style.css">', f"<style>{css}\n{mobile_css}</style>")
@@ -74,11 +71,9 @@ for tag in (
 
 html = html.replace(
     'Diseñado y desarrollado por <strong>Bayron Retamal González</strong></small>',
-    'SGTCP 3.0.6 · Móvil listo<br>Diseñado y desarrollado por <strong>Bayron Retamal González</strong></small>'
+    'SGTCP 3.0.7 · Móvil listo<br>Diseñado y desarrollado por <strong>Bayron Retamal González</strong></small>'
 )
-html = html.replace('SGTCP 3.0 · Diseñado y desarrollado', 'SGTCP 3.0.6 · Diseñado y desarrollado')
-html = html.replace('SGTCP 3.0.3 · Diseñado y desarrollado', 'SGTCP 3.0.6 · Diseñado y desarrollado')
-html = html.replace('SGTCP 3.0.4 · Diseñado y desarrollado', 'SGTCP 3.0.6 · Diseñado y desarrollado')
-html = html.replace('SGTCP 3.0.5 · Diseñado y desarrollado', 'SGTCP 3.0.6 · Diseñado y desarrollado')
+for old in ('SGTCP 3.0 · Diseñado y desarrollado','SGTCP 3.0.3 · Diseñado y desarrollado','SGTCP 3.0.4 · Diseñado y desarrollado','SGTCP 3.0.5 · Diseñado y desarrollado','SGTCP 3.0.6 · Diseñado y desarrollado'):
+    html = html.replace(old, 'SGTCP 3.0.7 · Diseñado y desarrollado')
 
-components.html(html, height=1400, scrolling=True)
+components.html(html, height=1100, scrolling=True)
