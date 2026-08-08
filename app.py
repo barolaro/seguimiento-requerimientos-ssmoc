@@ -67,13 +67,56 @@ DEFAULT_APPS_SCRIPT_URL = (
     "AKfycbzmYGqzfBTgjcyXtoB7rA6j1uvZ7XGSm_WHAuXWZSD8RLIOiQJd0krdQ_xfOSfJClsKiw/exec"
 )
 apps_script_url = str(st.secrets.get("apps_script_url", DEFAULT_APPS_SCRIPT_URL)).strip()
-config_script = "<script>window.SGTCP_CONFIG=" + json.dumps({"appsScriptUrl": apps_script_url, "version": "3.1.2"}, ensure_ascii=False) + ";</script>"
+config_script = "<script>window.SGTCP_CONFIG=" + json.dumps({"appsScriptUrl": apps_script_url, "version": "3.1.3"}, ensure_ascii=False) + ";</script>"
 
-# Guardado robusto final: se instala DESPUÉS de app.js y performance.js.
-# Actualiza la UI primero y sincroniza con Apps Script en segundo plano.
 fast_save_script = r"""
 <script>
 (function(){
+  function writeTraceCache(r,event){
+    try{
+      const id=Number(r.id);
+      let payload=null;
+      const mem=state.detailCache && state.detailCache[id];
+      if(mem && mem.payload) payload=mem.payload;
+      if(!payload){
+        try{
+          const raw=sessionStorage.getItem('sgtcp_detail_'+id);
+          const parsed=raw?JSON.parse(raw):null;
+          if(parsed && parsed.payload) payload=parsed.payload;
+        }catch(_){}
+      }
+      if(!payload) payload={requerimiento:{...r},eventos:[]};
+      payload.requerimiento={...r};
+      payload.eventos=Array.isArray(payload.eventos)?payload.eventos:[];
+      payload.eventos.push(event);
+      state.detailCache=state.detailCache||{};
+      state.detailCache[id]={payload,ts:Date.now()};
+      sessionStorage.setItem('sgtcp_detail_'+id,JSON.stringify(state.detailCache[id]));
+      return payload;
+    }catch(e){console.warn('Cache trazabilidad:',e);return null;}
+  }
+
+  function updateTraceCache(id,event){
+    try{
+      const entry=state.detailCache && state.detailCache[Number(id)];
+      if(!entry || !entry.payload || !Array.isArray(entry.payload.eventos)) return;
+      const found=entry.payload.eventos.find(x=>x._local_id===event._local_id);
+      if(found) found._pending=false;
+      entry.ts=Date.now();
+      sessionStorage.setItem('sgtcp_detail_'+Number(id),JSON.stringify(entry));
+    }catch(e){console.warn('Confirmación cache:',e);}
+  }
+
+  function removeTraceCacheEvent(id,event){
+    try{
+      const entry=state.detailCache && state.detailCache[Number(id)];
+      if(!entry || !entry.payload || !Array.isArray(entry.payload.eventos)) return;
+      entry.payload.eventos=entry.payload.eventos.filter(x=>x._local_id!==event._local_id);
+      entry.ts=Date.now();
+      sessionStorage.setItem('sgtcp_detail_'+Number(id),JSON.stringify(entry));
+    }catch(e){console.warn('Reversión cache:',e);}
+  }
+
   function installFastSave(){
     const btn=document.getElementById('saveUpdateBtn');
     if(!btn || typeof state==='undefined' || typeof call!=='function') return;
@@ -86,67 +129,73 @@ fast_save_script = r"""
       const detail=document.getElementById('detailUpdate').value.trim();
       if(!detail){ toast('Ingrese una actualización para dejar trazabilidad.','error'); return; }
 
-      const cambios={
-        estado:document.getElementById('detailStatus').value,
-        avance:Number(document.getElementById('detailProgress').value)||0
-      };
+      const cambios={estado:document.getElementById('detailStatus').value,avance:Number(document.getElementById('detailProgress').value)||0};
       if(typeof manager==='function' && manager()){
         cambios.prioridad=document.getElementById('detailPriority').value;
         cambios.descripcion=document.getElementById('detailDescription').value.trim();
       }
       if(cambios.estado==='Terminado') cambios.avance=100;
 
-      if(!window.confirm(
-        `¿Está seguro de guardar esta actualización?\n\nREQ-${String(r.id).padStart(3,'0')} · ${r.titulo}\nEstado: ${r.estado} → ${cambios.estado}\nAvance: ${r.avance||0}% → ${cambios.avance}%\n\nLa acción quedará registrada en la trazabilidad.`
-      )) return;
+      if(!window.confirm(`¿Está seguro de guardar esta actualización?\n\nREQ-${String(r.id).padStart(3,'0')} · ${r.titulo}\nEstado: ${r.estado} → ${cambios.estado}\nAvance: ${r.avance||0}% → ${cambios.avance}%\n\nLa acción quedará registrada en la trazabilidad.`)) return;
 
       const snapshot={...r};
       const now=new Date().toISOString();
       const oldState=r.estado;
       const oldAdvance=Number(r.avance||0);
+      const event={
+        _local_id:'LOCAL-'+Date.now()+'-'+Math.random().toString(36).slice(2),
+        _pending:true,
+        fecha:now,
+        tipo:oldState!==cambios.estado?'estado':oldAdvance!==cambios.avance?'avance':'actualizacion',
+        autor:state.user?.usuario,
+        detalle:detail,
+        estado_anterior:oldState,
+        estado_nuevo:cambios.estado,
+        responsable_anterior:r.responsable,
+        responsable_nuevo:r.responsable,
+        avance_anterior:oldAdvance,
+        avance_nuevo:cambios.avance
+      };
 
-      // 1) REFLEJO INMEDIATO EN MEMORIA.
+      // Estado y visualizador se actualizan ANTES de esperar Google Sheets.
       Object.assign(r,cambios,{actualizado:now});
+      const tracePayload=writeTraceCache(r,event);
+      const timeline=document.getElementById('timeline');
+      if(timeline && tracePayload && typeof timelineHtml==='function') timeline.innerHTML=timelineHtml(tracePayload.eventos,r);
 
-      // 2) REFLEJO INMEDIATO EN LA TABLA / PANEL SIN RECARGAR GOOGLE SHEETS.
       const dialog=document.getElementById('detailDialog');
-      if(dialog?.open) dialog.close();
+      if(dialog?.open) setTimeout(()=>dialog.close(),180);
       toast(`REQ-${String(r.id).padStart(3,'0')} actualizado · sincronizando…`,'success');
 
-      // Primero dejamos que el navegador pinte el cierre del modal.
       requestAnimationFrame(()=>{
         try{
           if(typeof renderRequirements==='function') renderRequirements();
           if(typeof renderRecent==='function') renderRecent();
           if(typeof renderAlerts==='function') renderAlerts();
           if(typeof renderAttention==='function') renderAttention();
-          // KPIs simples sin reconstruir gráficos pesados.
           const active=state.requirements.filter(x=>x.estado!=='Terminado');
           const over=active.filter(x=>typeof overdue==='function'&&overdue(x));
           const vals=[['Activos',active.length,'Requerimientos abiertos'],['En ejecución',state.requirements.filter(x=>x.estado==='En ejecución').length,'Gestión activa'],['Pendientes',state.requirements.filter(x=>x.estado==='Pendiente').length,'Por iniciar'],['Terminados',state.requirements.filter(x=>x.estado==='Terminado').length,'Cerrados'],['Vencidos',over.length,'Requieren atención']];
           const k=document.getElementById('kpis');
           if(k) k.innerHTML=vals.map(x=>`<article class="kpi"><span>${x[0]}</span><strong>${x[1]}</strong><small>${x[2]}</small></article>`).join('');
-        }catch(e){ console.warn('Render rápido:',e); }
+        }catch(e){console.warn('Render rápido:',e);}
       });
 
-      // 3) UNA SOLA LLAMADA AL BACKEND. NO loadAll().
       try{
         await call('actualizar_req',{id:r.id,cambios,detalle:detail});
+        updateTraceCache(r.id,event);
         toast(`✓ REQ-${String(r.id).padStart(3,'0')} guardado correctamente en Google Sheets.`,'success');
       }catch(e){
-        Object.keys(r).forEach(k=>delete r[k]);
-        Object.assign(r,snapshot);
-        requestAnimationFrame(()=>{
-          try{ renderRequirements(); renderRecent(); renderAlerts(); renderAttention(); }catch(_){}
-        });
+        Object.keys(r).forEach(k=>delete r[k]);Object.assign(r,snapshot);
+        removeTraceCacheEvent(r.id,event);
+        requestAnimationFrame(()=>{try{renderRequirements();renderRecent();renderAlerts();renderAttention();}catch(_){}});
         toast(`No se pudo guardar. El cambio fue revertido: ${e.message}`,'error');
       }
     };
 
-    // Sobrescribe explícitamente cualquier handler anterior.
     btn.onclick=null;
     btn.addEventListener('click',window.__sgtcpFastSave);
-    btn.dataset.fastSave='3.1.2';
+    btn.dataset.fastSave='3.1.3';
   }
 
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',()=>setTimeout(installFastSave,0));
@@ -161,8 +210,8 @@ html = html.replace('<script src="js/app.js"></script>', f"<script>{javascript}<
 for tag in ('<script src="js/performance.js?v=3.0.1"></script>','<script src="js/performance.js?v=3.0.2"></script>','<script src="js/performance.js?v=3.1.1"></script>','<script src="js/performance.js"></script>'):
     html = html.replace(tag, f"<script>{performance_js}</script>{fast_save_script}")
 
-html = html.replace('Diseñado y desarrollado por <strong>Bayron Retamal González</strong></small>','SGTCP 3.1.2 · Guardado instantáneo<br>Diseñado y desarrollado por <strong>Bayron Retamal González</strong></small>')
-for old in ('SGTCP 3.0 · Diseñado y desarrollado','SGTCP 3.0.3 · Diseñado y desarrollado','SGTCP 3.0.4 · Diseñado y desarrollado','SGTCP 3.0.5 · Diseñado y desarrollado','SGTCP 3.0.6 · Diseñado y desarrollado','SGTCP 3.0.7 · Diseñado y desarrollado','SGTCP 3.0.8 · Diseñado y desarrollado','SGTCP 3.0.9 · Diseñado y desarrollado','SGTCP 3.1.0 · Diseñado y desarrollado','SGTCP 3.1.1 · Diseñado y desarrollado'):
-    html = html.replace(old,'SGTCP 3.1.2 · Diseñado y desarrollado')
+html = html.replace('Diseñado y desarrollado por <strong>Bayron Retamal González</strong></small>','SGTCP 3.1.3 · Trazabilidad instantánea<br>Diseñado y desarrollado por <strong>Bayron Retamal González</strong></small>')
+for old in ('SGTCP 3.0 · Diseñado y desarrollado','SGTCP 3.0.3 · Diseñado y desarrollado','SGTCP 3.0.4 · Diseñado y desarrollado','SGTCP 3.0.5 · Diseñado y desarrollado','SGTCP 3.0.6 · Diseñado y desarrollado','SGTCP 3.0.7 · Diseñado y desarrollado','SGTCP 3.0.8 · Diseñado y desarrollado','SGTCP 3.0.9 · Diseñado y desarrollado','SGTCP 3.1.0 · Diseñado y desarrollado','SGTCP 3.1.1 · Diseñado y desarrollado','SGTCP 3.1.2 · Diseñado y desarrollado'):
+    html = html.replace(old,'SGTCP 3.1.3 · Diseñado y desarrollado')
 
 components.html(html, height=900, scrolling=True)
