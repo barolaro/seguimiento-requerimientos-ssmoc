@@ -34,8 +34,9 @@ css_path = frontend_dir / "css" / "style.css"
 mobile_css_path = frontend_dir / "css" / "mobile.css"
 js_path = frontend_dir / "js" / "app.js"
 stabilization_path = frontend_dir / "js" / "stabilization.js"
+sync_path = frontend_dir / "js" / "sync.js"
 
-required = (html_path, css_path, mobile_css_path, js_path, stabilization_path)
+required = (html_path, css_path, mobile_css_path, js_path, stabilization_path, sync_path)
 missing = [str(p.relative_to(base_dir)) for p in required if not p.exists()]
 if missing:
     st.error("La interfaz está incompleta. Faltan: " + ", ".join(missing))
@@ -46,6 +47,7 @@ css = css_path.read_text(encoding="utf-8")
 mobile_css = mobile_css_path.read_text(encoding="utf-8")
 javascript = js_path.read_text(encoding="utf-8")
 stabilization_js = stabilization_path.read_text(encoding="utf-8")
+sync_js = sync_path.read_text(encoding="utf-8")
 
 universal_css = r"""
 html,body{width:100%;max-width:100%;overflow-x:hidden!important}body{min-height:100%;}
@@ -71,8 +73,8 @@ config_script = "<script>window.SGTCP_CONFIG=" + json.dumps(
     {"appsScriptUrl": apps_script_url, "version": "3.2.0"}, ensure_ascii=False
 ) + ";</script>"
 
-# Streamlit no sirve los archivos relativos del iframe. Se incrustan una sola vez,
-# respetando el orden: configuración -> app base -> estabilización.
+# Streamlit no sirve los archivos relativos dentro del iframe. Se incrustan una sola vez,
+# respetando el orden: configuración -> app base -> estabilización -> sincronización.
 html = html.replace('<link rel="stylesheet" href="css/style.css">', f"<style>{css}\n{mobile_css}\n{universal_css}</style>")
 html = html.replace('<script src="js/config.js"></script>', config_script)
 html = html.replace('<script src="js/app.js"></script>', f"<script>{javascript}</script>")
@@ -80,6 +82,8 @@ html = html.replace('<script src="js/performance.js?v=3.0.2"></script>', '')
 html = html.replace('<script src="js/performance.js"></script>', '')
 html = html.replace('<script src="js/stabilization.js?v=3.2.0"></script>', f"<script>{stabilization_js}</script>")
 html = html.replace('<script src="js/stabilization.js"></script>', f"<script>{stabilization_js}</script>")
+html = html.replace('<script src="js/sync.js?v=3.2.0"></script>', f"<script>{sync_js}</script>")
+html = html.replace('<script src="js/sync.js"></script>', f"<script>{sync_js}</script>")
 
 html = html.replace(
     'Diseñado y desarrollado por <strong>Bayron Retamal González</strong></small>',
